@@ -1,0 +1,18 @@
+[package]
+name = "sirin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cortex-m-rt = "0.7.3"
+embassy-executor = { version = "0.3.0", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
+embassy-stm32 = { path = "../embassy/embassy-stm32", version = "0.1.0", features = [ "stm32h743bi" ]}
+quote = "1.0.33"
+static_cell = "1.2.0"
+syn = { version = "2.0.31", features = ["full"] }
+
+
