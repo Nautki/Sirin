@@ -1,3 +1,5 @@
+#![feature(error_in_core)]
+
 use core::panic;
 
 use embassy_executor::Executor;
