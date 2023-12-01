@@ -5,7 +5,7 @@ use core::panic;
 
 use embassy_executor::Executor;
 use embassy_stm32::{ Config };
-use spi::spi::{EmbassySpi, Spi, SpiPins};
+use spi::spi::{ EmbassySpi, Spi };
 
 pub mod spi;
 
@@ -16,7 +16,7 @@ pub struct Peripherals {
 impl Peripherals {
     pub fn new(p: embassy_stm32::Peripherals) -> Self {
         Self {
-            spi: Spi::new(SpiPins {
+            spi: Spi::new(SpiPinsTrait {
                 spi: p.SPI1,
                 sck: p.PA5,
                 miso: p.PA6,
