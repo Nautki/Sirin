@@ -1,21 +1,13 @@
-use core::{future, fmt};
-use core::error::Error;
-use std::fmt::Display;
-use async_trait::async_trait;
+use core::future;
+//use async_trait::async_trait;
 
-use enum_display_derive::Display;
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpiError {
     SelectError,
     WriteError,
     ReadError,
 }
 
-impl Error for SpiError {}
-
-#[async_trait]
 pub trait SpiDeviceConn where
     Self: Sized,
 {
@@ -23,7 +15,8 @@ pub trait SpiDeviceConn where
     type Selected: SelectedSpiDeviceConn<SpiDeviceConn = Self>;
     
     /// Automatically selects the device and then swaps the bytes.
-    async fn write(&mut self, data: impl Iterator<Item = u8> + Send)
+    /// TODO: figure out how to implement this. Async is not allowed in traits
+    /*async fn write(&mut self, data: impl Iterator<Item = u8> + Send)
         -> Result<(), SpiError> {
         let selected = self.select().await.map_err(|_| SpiError::SelectError)?;
 
@@ -33,7 +26,9 @@ pub trait SpiDeviceConn where
 
         *self = selected.deselect().await.map_err(|_| SpiError::SelectError)?;
         Ok(())
-    }
+    }*/
+    fn write(&mut self, data: impl Iterator<Item = u8> + Send)
+        -> Self::Future<Result<(), SpiError>>;
 
     /// Automatically selects this device, then reads `num_bytes` bytes from the device.
     fn read<const num_bytes: usize>(&mut self)

@@ -1,29 +1,43 @@
-use embassy_stm32::dma::Channel;
-use embassy_stm32::peripherals::{ DMA1_CH1, DMA1_CH2 };
-use embassy_stm32::spi as em_spi;
-use em_spi::Instance as SpiInstance;
-use embassy_sync::channel::Channel;
+use embassy_stm32::spi::{self as em_spi};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::{ Mutex, MutexGuard };
 
-use super::config::SpiConfig;
+use super::config::{SpiConfig, SpiConfigStruct};
 
-pub type EmbassySpi<S: SpiInstance> = embassy_stm32::spi::Spi<'static, S, DMA1_CH1, DMA1_CH2>;
-
-pub type SpiChannel = Channel<TODO>;
+pub type EmbassySpi<S, Tx, Rx> = embassy_stm32::spi::Spi<'static, S, Tx, Rx>;
+pub type MutexSpi<S> = Mutex<CriticalSectionRawMutex, SpiInstance<S>>;
+pub type MutexGuardSpi<'a, S> = MutexGuard<'a, CriticalSectionRawMutex, SpiInstance<S>>;
 
 pub struct Spi<S: SpiConfig> {
-    embassy_spi: EmbassySpi<S::Spi>
+    mutex: MutexSpi<S>
 }
 
 impl <S: SpiConfig> Spi<S> {
-    pub fn new(config: S) -> Self {
+    pub fn new(config: SpiConfigStruct<S>) -> Self {
         Self {
-            embassy_spi: EmbassySpi::<S>::new(
-                config.spi(),
-                config.sck(),
-                config.mosi(),
-                config.miso(),
-                config.dma_tx(),
-                config.dma_rx(),
+            mutex: MutexSpi::new(SpiInstance::new(config))
+        }
+    }
+
+    pub async fn borrow(&self) -> MutexGuardSpi<S> {
+        self.mutex.lock().await
+    }
+}
+
+pub struct SpiInstance<S: SpiConfig> {
+    embassy_spi: EmbassySpi<S::Spi, S::TxDma, S::RxDma>
+}
+
+impl <S: SpiConfig> SpiInstance<S> {
+    pub fn new(config: SpiConfigStruct<S>) -> Self {
+        Self {
+            embassy_spi: EmbassySpi::new(
+                config.spi,
+                config.sck,
+                config.mosi,
+                config.miso,
+                config.dma_tx,
+                config.dma_rx,
                 em_spi::Config::default()
             )
         }
