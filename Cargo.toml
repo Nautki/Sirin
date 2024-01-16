@@ -16,13 +16,15 @@ sirin_macros = { path = "./sirin_macros" }
 
 # external
 cortex-m-rt = "0.7.3"
-embassy-executor = { version = "0.3.0", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
-embassy-stm32 = { path = "../embassy/embassy-stm32", version = "0.1.0", features = [ "stm32h743ii" ]}
-embassy-sync = { path = "../embassy/embassy-sync", version = "0.4.0" }
+embassy-executor = { path = "../embassy/embassy-executor", version = "^0.4.0", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
+embassy-stm32 = { path = "../embassy/embassy-stm32", version = "^0.1.0", features = [ "stm32h743ii" ]}
+embassy-sync = { path = "../embassy/embassy-sync", version = "^0.5.0" }
 quote = "1.0.33"
 static_cell = "1.2.0"
 syn = { version = "2.0.31", features = ["full"] }
 async-trait = "0.1.74"
 enum-display-derive = "0.1.1"
+embedded-hal-async = "1.0.0-rc.2"
+unhygienic2 = "0.1.0"
 
 
