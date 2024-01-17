@@ -1,35 +1,25 @@
-use core::future;
-
 use embassy_stm32::gpio::{AnyPin, Output};
 use embedded_hal_async::spi::{SpiDevice, ErrorType, Operation, SpiBus};
-use embassy_stm32::gpio::Pin;
 
 use crate::delay::delay_ns;
-use super::{spi::{Spi, SpiInstance, SpiError}, config::SpiConfig};
-//use async_trait::async_trait;
+use super::{spi::{Spi, SpiError}, config::SpiConfig};
 
-macro_rules! impl_SpiDevice {
-    ($ident: ident) => {
-        
-    };
-}
-
-pub trait SpiInterface<'a, S: SpiConfig + 'a>: SpiDevice {
+pub trait SpiInterfaceTrait<'a, S: SpiConfig + 'a>: SpiDevice {
     async fn spi(&mut self) -> &'a Spi<S>;
     async fn select(&mut self) -> Result<(), SpiError>;
     async fn deselect(&mut self) -> Result<(), SpiError>;
 }
 
-pub struct BasicSpiInterface<'a, S: SpiConfig>  {
+pub struct SpiInterface<'a, S: SpiConfig>  {
     spi: &'a Spi<S>,
     pin: Output<'a, AnyPin>,
 }
 
-impl <S: SpiConfig> ErrorType for BasicSpiInterface<'_, S> {
+impl <S: SpiConfig> ErrorType for SpiInterface<'_, S> {
     type Error = SpiError;
 }
 
-impl <S: SpiConfig> SpiDevice for BasicSpiInterface<'_, S> {
+impl <S: SpiConfig> SpiDevice for SpiInterface<'_, S> {
     async fn transaction(
         &mut self,
         operations: &mut [Operation<'_, u8>]
@@ -50,7 +40,7 @@ impl <S: SpiConfig> SpiDevice for BasicSpiInterface<'_, S> {
     }
 }
 
-impl <'a, S: SpiConfig> SpiInterface<'a, S> for BasicSpiInterface<'a, S> {
+impl <'a, S: SpiConfig> SpiInterfaceTrait<'a, S> for SpiInterface<'a, S> {
     async fn spi(&mut self) -> &'a Spi<S> {
         self.spi
     }
