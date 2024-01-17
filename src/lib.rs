@@ -9,6 +9,7 @@ use embassy_stm32::{ Config };
 use spi::spi::{ EmbassySpi, SpiInstance };
 
 pub mod spi;
+pub mod delay;
 
 pub struct Peripherals {
     //pub spi: SpiInstance,
