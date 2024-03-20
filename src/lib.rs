@@ -10,6 +10,7 @@ use spi::spi::{ EmbassySpi, SpiInstance };
 
 pub mod spi;
 pub mod delay;
+pub mod gpio;
 
 pub struct Peripherals {
     //pub spi: SpiInstance,

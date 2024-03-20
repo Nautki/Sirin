@@ -25,6 +25,7 @@ impl <S: SpiConfig> SpiDevice for SpiInterface<'_, S> {
         operations: &mut [Operation<'_, u8>]
     ) -> Result<(), Self::Error> {
         let mut spi = self.spi.borrow().await;
+        self.pin.set_low();
 
         for op in operations {
             match op {
@@ -35,6 +36,8 @@ impl <S: SpiConfig> SpiDevice for SpiInterface<'_, S> {
                 Operation::DelayNs(time_ns) => delay_ns(*time_ns).await,
             }
         }
+
+        self.pin.set_high();
 
         Ok(())
     }
@@ -56,16 +59,11 @@ impl <'a, S: SpiConfig> SpiInterfaceTrait<'a, S> for SpiInterface<'a, S> {
     }
 }
 
-#[macro_export]
-macro_rules! transact {
-    ($device: ident, $($tx: tt)*) => {{
-        let val = {
-            let inst = $device.spi.borrow().await;
-            $device.select();
-            $device.
-            $($tx)*
+/// Macro to simplify transactions. Requires that there is a variable `self` with property `spi_interface`.
+macro_rules! t {
+    ($()*) => {
+        {
+            let slf = $crate::unhygenic!(self)
         }
-        $device.deselect();
-        val
-    }};
+    };
 }
