@@ -12,13 +12,6 @@ use super::config::{SpiConfig, SpiConfigStruct};
 
 pub type EmbassySpi<S, Tx, Rx> = embassy_stm32::spi::Spi<'static, S, Tx, Rx>;
 
-// NB. this doesnt fit the semantics of the [core::borrow::Borrow] trait so that's
-// why it isn't implemented.
-pub trait SpiInterface {
-    type Spi: Spi;
-    fn select<'a>(&'a self) -> impl Future<Output = Self::Spi>;
-}
-
 #[derive(SpiError)]
 pub struct SpiInstance<S: SpiConfig> {
     embassy_spi: EmbassySpi<S::Spi, S::TxDma, S::RxDma>

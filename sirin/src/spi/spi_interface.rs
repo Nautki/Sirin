@@ -4,7 +4,7 @@ use embassy_stm32::{gpio::Output, spi::Spi as EmbassySpi};
 use embedded_hal_async::spi::{SpiDevice, ErrorType, Operation, SpiBus};
 
 use crate::delay::delay_ns;
-use super::{config::SpiConfig, spi::{Spi, SpiError, SpiInterface}};
+use super::{config::SpiConfig, spi::{Spi, SpiError, SpiHandle}};
 
 // I have found it easier to manage chip select manually so far,
 // but it may be worth it to experiment with using [Drop] to force the
@@ -16,10 +16,10 @@ pub trait SpiInterface<'a>: SpiDevice {
     fn deselect(&mut self) -> impl Future<Output = Result<(), SpiError>>;
 }
 
-impl <'a, S: SpiInterface> SpiInterface<'a> for SpiInterfaceStruct<'a, S> {
+impl <'a, S: SpiHandle> SpiInterface<'a> for SpiInterfaceStruct<'a, S> {
     type Spi = S::Spi;
     fn spi(&mut self) -> impl Future<Output = S::Spi> {
-        self.spi.select()
+        self.spi.borrow()
     }
 
     async fn select(&mut self) -> Result<(), SpiError> {
@@ -34,21 +34,21 @@ impl <'a, S: SpiInterface> SpiInterface<'a> for SpiInterfaceStruct<'a, S> {
 }
 
 // bad name
-pub struct SpiInterfaceStruct<'a, S: SpiInterface>  {
+pub struct SpiInterfaceStruct<'a, S: SpiHandle>  {
     spi: &'a S,
     cs: Output<'a>,
 }
 
-impl <S: SpiInterface> ErrorType for SpiInterfaceStruct<'_, S> {
+impl <S: SpiHandle> ErrorType for SpiInterfaceStruct<'_, S> {
     type Error = SpiError;
 }
 
-impl <S: SpiInterface> SpiDevice for SpiInterfaceStruct<'_, S> {
+impl <S: SpiHandle> SpiDevice for SpiInterfaceStruct<'_, S> {
     async fn transaction(
         &mut self,
         operations: &mut [Operation<'_, u8>]
     ) -> Result<(), Self::Error> {
-        let mut spi = self.spi.select().await;
+        let mut spi = self.spi.borrow().await;
         self.cs.set_low();
 
         for op in operations {
