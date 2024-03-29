@@ -1,35 +1,32 @@
+use core::future::Future;
+use core::ops::{Deref, DerefMut};
+
 use embassy_stm32::spi::{self as em_spi};
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::mutex::{ Mutex, MutexGuard };
 
 use embedded_hal_async::spi::{SpiBus, ErrorType};
 use embedded_hal_async::spi as hal_spi;
+use sirin_macros::SpiError;
 
 use super::config::{SpiConfig, SpiConfigStruct};
+//use super::spi_interface::SpiInterface;
 
 pub type EmbassySpi<S, Tx, Rx> = embassy_stm32::spi::Spi<'static, S, Tx, Rx>;
-pub type MutexSpi<S> = Mutex<CriticalSectionRawMutex, SpiInstance<S>>;
-pub type MutexGuardSpi<'a, S> = MutexGuard<'a, CriticalSectionRawMutex, SpiInstance<S>>;
 
-pub struct Spi<S: SpiConfig> {
-    mutex: MutexSpi<S>
+// NB. this doesnt fit the semantics of the [core::borrow::Borrow] trait so that's
+// why it isn't implemented.
+pub trait SpiInterface {
+    type Spi: Spi;
+    fn select<'a>(&'a self) -> impl Future<Output = Self::Spi>;
 }
 
-impl <S: SpiConfig> Spi<S> {
-    pub fn new(config: SpiConfigStruct<S>) -> Self {
-        Self {
-            mutex: MutexSpi::new(SpiInstance::new(config))
-        }
-    }
-
-    pub async fn borrow(&self) -> MutexGuard<CriticalSectionRawMutex, SpiInstance<S>> {
-        self.mutex.lock().await
-    }
-}
-
+#[derive(SpiError)]
 pub struct SpiInstance<S: SpiConfig> {
     embassy_spi: EmbassySpi<S::Spi, S::TxDma, S::RxDma>
 }
+
+pub trait Spi: ErrorType<Error = SpiError> + SpiBus {}
+
+impl <S: SpiConfig> Spi for SpiInstance<S> {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpiError {
@@ -41,7 +38,7 @@ pub enum SpiError {
 }
 
 impl SpiError {
-    fn from_kind(err: impl hal_spi::Error) -> Self {
+    pub fn from_kind(err: impl hal_spi::Error) -> Self {
         match err.kind() {
             hal_spi::ErrorKind::Overrun => SpiError::Overrun,
             hal_spi::ErrorKind::ModeFault => SpiError::ModeFault,
@@ -73,10 +70,6 @@ impl hal_spi::Error for SpiError {
             SpiError::Other => hal_spi::ErrorKind::Other,
         }
     }
-}
-
-impl <S: SpiConfig> ErrorType for SpiInstance<S> {
-    type Error = SpiError;
 }
 
 impl <S: SpiConfig> SpiInstance<S> {

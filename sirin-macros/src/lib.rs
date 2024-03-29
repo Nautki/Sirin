@@ -1,14 +1,11 @@
 use proc_macro::TokenStream;
 use quote::ToTokens;
-use syn::parse::Parser;
+use syn::{parse::Parser, parse_macro_input, DeriveInput};
 use quote::quote;
 
-fn main() {
-    println!("Hello, world!");
-}
-
+/*
 #[proc_macro_attribute]
-pub fn spi_device(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn spi_device(_args: TokenStream, input: TokenStream) -> TokenStream {
     let mut device_struct = syn::parse_macro_input!(input as syn::ItemStruct);
     device_struct.generics.params.insert(0, syn::parse_quote!(S: ::sirin::spi::SpiConfig));
     match device_struct.fields {
@@ -24,4 +21,18 @@ pub fn spi_device(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     device_struct.into_token_stream().into()
+}*/
+
+// Note, this won't work in downstream crates.
+#[proc_macro_derive(SpiError)]
+pub fn derive_spi_error(item: TokenStream) -> TokenStream {
+    let item: DeriveInput = parse_macro_input!(item);
+    let name = item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics embedded_hal_async::spi::ErrorType for #name #ty_generics #where_clause {
+            type Error = crate::spi::SpiError;
+        }
+    }.into()
 }
