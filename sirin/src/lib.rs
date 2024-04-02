@@ -6,11 +6,11 @@ use core::panic;
 
 use embassy_executor::Executor;
 use embassy_stm32::{ Config };
-use spi::spi::{ EmbassySpi, SpiInstance };
 
 pub mod spi;
 pub mod delay;
 pub mod gpio;
+pub mod sync;
 
 pub struct Peripherals {
     //pub spi: SpiInstance,

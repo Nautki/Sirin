@@ -23,6 +23,6 @@ static_cell = "1.2.0"
 syn = { version = "2.0.31", features = ["full"] }
 async-trait = "0.1.74"
 enum-display-derive = "0.1.1"
-embedded-hal-async = "1.0.0-rc.2"
+embedded-hal-async = "1.0.0"
 unhygienic2 = "0.1.0"
 derive-new = "0.6.0"
