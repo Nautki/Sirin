@@ -1,0 +1,13 @@
+/exp/projects/periphs/periphs-macro2/target/debug/deps/libheck-8c68b51a0d991533.rmeta: /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/lib.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/kebab.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/lower_camel.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/shouty_kebab.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/shouty_snake.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/snake.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/title.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/train.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/upper_camel.rs
+
+/exp/projects/periphs/periphs-macro2/target/debug/deps/heck-8c68b51a0d991533.d: /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/lib.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/kebab.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/lower_camel.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/shouty_kebab.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/shouty_snake.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/snake.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/title.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/train.rs /home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/upper_camel.rs
+
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/lib.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/kebab.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/lower_camel.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/shouty_kebab.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/shouty_snake.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/snake.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/title.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/train.rs:
+/home/serena/.cargo/registry/src/index.crates.io-6f17d22bba15001f/heck-0.5.0/src/upper_camel.rs:

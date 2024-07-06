@@ -1,21 +1,33 @@
 use syn::{braced, bracketed, parse::Parse, token::Bracket, Attribute, ExprRange, Ident, LitInt, Token};
 
 pub struct CsrDescription {
+    pub name: Ident,
     pub regs: Vec<Reg>,
 }
 
 impl Parse for CsrDescription {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let regs_ident = input.parse::<Ident>()?;
+        let periph_ident = input.parse::<Ident>()?;
+        if periph_ident.to_string() != "periph" {
+            return Err(syn::Error::new(periph_ident.span(), "Expected 'periph'"));
+        }
+
+        let name = input.parse::<Ident>()?;
+
+        let inside;
+        braced!(inside in input);
+
+        let regs_ident = inside.parse::<Ident>()?;
         if regs_ident.to_string() != "regs" {
-            return Err(syn::Error::new(regs_ident.span(), "Expected 'addrs'"));
+            return Err(syn::Error::new(regs_ident.span(), "Expected 'regs'"));
         }
 
         let regs;
-        braced!(regs in input);
+        braced!(regs in inside);
         let regs = regs.parse_terminated(Reg::parse, Token![,])?;
 
         Ok(CsrDescription {
+            name,
             regs: regs.into_iter().collect(),
         })
     }
@@ -125,6 +137,7 @@ impl Parse for Subfield {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum BitRange {
     Single(usize),
     Range(usize, usize),
@@ -142,7 +155,16 @@ impl Parse for BitRange {
     }
 }
 
-#[derive(Clone, Copy)]
+impl From<BitRange> for (u8, u8) {
+    fn from(value: BitRange) -> Self {
+        match value {
+            BitRange::Single(b) => (b as u8, b as u8),
+            BitRange::Range(a, b) => (a as u8, b as u8)
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Access {
     Read,
     Write,

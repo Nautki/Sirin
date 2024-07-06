@@ -1,0 +1,10 @@
+workspace = { members = ["periphs-macro", "periphs-macro2"] }
+[package]
+name = "periphs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+periphs-macro = { version = "0.1.0", path = "periphs-macro2" }
