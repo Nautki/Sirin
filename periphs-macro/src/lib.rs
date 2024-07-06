@@ -1,402 +1,316 @@
-#![allow(dead_code)]
-
-use std::collections::HashMap;
-
-use convert_case::{Case, Casing};
-use parse::{Access, BitRange, CsrDescription, Reg, RegValue, Subfield};
+use parse::{BitRange, Periph, Var};
 use proc_macro::TokenStream;
-use proc_macro2::{TokenStream as TokenStream2, TokenTree};
+use syn::{parse_macro_input, Ident};
+use heck::*;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, Data, DeriveInput};
 
 mod parse;
 
-struct ValueParts {
-    access: Access,
-    parts: Vec<ValuePart>
+macro_rules! ident {
+    ($format:expr, $ident:expr) => {
+        Ident::new(&(format!($format, $ident)), $ident.span())
+    };
 }
 
-struct ValuePart {
-    reg: syn::Ident,
-    reg_range: (u8, u8),
-    value_range: (u8, u8),
+struct IdentGen {
+    counter: usize
 }
 
-struct ValueSubfield {
-    access: Access,
-    reg: syn::Ident,
-    reg_range: (u8, u8)
-}
-
-struct Passthrough {
-    access: Access,
-    reg: syn::Ident,
-}
-
-enum Value {
-    Parts(ValueParts),
-    Subfield(ValueSubfield),
-    Passthrough(Passthrough),
-}
-
-struct VariableMap {
-    pub map: HashMap::<String, Value>,
-}
-
-impl VariableMap {
-    pub fn new() -> VariableMap {
-        VariableMap {
-            map: HashMap::new()
+impl IdentGen {
+    pub fn new() {
+        IdentGen {
+            counter: 0
         }
     }
 
-    pub fn add_passthrough(&mut self, access: Access, name: String, reg: syn::Ident) {
-        self.map.insert(name, Value::Passthrough(Passthrough { access, reg }));
-    }
-
-    pub fn add_subfield(&mut self, access: Access, name: String, reg: syn::Ident, reg_range: (u8, u8)) {
-        self.map.insert(name, Value::Subfield(ValueSubfield { access, reg, reg_range }));
-    }
-
-    pub fn add_part(&mut self, access: Access, name: String, reg: syn::Ident, reg_range: (u8, u8), value_range: (u8, u8)) {
-        if self.map.contains_key(&name) {
-            match self.map.get_mut(&name).unwrap() {
-                Value::Parts(parts) => {
-                    parts.parts.push(ValuePart { reg, reg_range, value_range });
-                    if parts.access != access {
-                        panic!("Mixed r/w access");
-                    }
-                },
-                _ => panic!("Mixed type of {}", name)
-            }
-        } else {
-            self.map.insert(reg.to_string(), Value::Parts(ValueParts {
-                access,
-                parts: vec![ValuePart { reg, reg_range, value_range }]
-            }));
-        }
+    fn next(&mut self) -> Ident {
+        let ident = Ident::new(&format!("_{}", self.counter), Span::call_site());
+        self.counter += 1;
+        ident
     }
 }
 
 #[proc_macro]
-pub fn csr(tokens: TokenStream) -> TokenStream {
-    let csr = parse_macro_input!(tokens as CsrDescription);
-    let device_name = csr.name.clone();
+pub fn periph(input: TokenStream) -> TokenStream {
+    let Periph {
+        addr_ty,
+        word_ty,
+        name,
+        regs,
+        vars,
+        ..
+    } = parse_macro_input!(input as Periph);
 
-    let addr_ty = quote! { u8 };
-    let reg_int_ty = quote! { u8 };
+    let addr_trait = ident!("As{}Addr", name);
+    let read_trait = ident!("Read{}", name);
+    let write_trait = ident!("Write{}", name);
 
     let mut out = TokenStream2::new();
-    let mut vars = VariableMap::new();
 
-    let reg_trait = syn::Ident::new(&(csr.name.to_string() + "Register"), csr.name.span());
-    let write_trait = syn::Ident::new(&("Write".to_string() + &csr.name.to_string() + "Register"), csr.name.span());
-    let read_trait = syn::Ident::new(&("Read".to_string() + &csr.name.to_string() + "Register"), csr.name.span());
+    let mut read_out = TokenStream2::new();
+    let mut write_out = TokenStream2::new();
 
-    for reg in csr.regs {
-        let addr = reg.addr.clone();
-        let name = syn::Ident::new(&("Reg".to_owned() + &reg.reg_name.to_string().to_case(Case::UpperCamel)), reg.reg_name.span());
-        let readable = reg.access.readable();
-        let writable = reg.access.writable();
-        
-        let reg_self_value = match &reg.value {
-            RegValue::Subfields(_) => {
-                create_value_type(&reg, &mut out).to_token_stream()
-            },
-            _ => {
-                quote! { u8 }
-            }
-        };
+    for reg in regs {
+        let reg_struct = ident!("Reg{}", reg.reg);
+        let Reg { addr, access, .. } = reg;
+        let readable = access.readable;
+        let writable = access.writable;
 
-        out.extend(quote! {
-            pub struct #name;
-
-            impl periphs::Register<u8, u8> for #name {
-                const ADDR: u8 = #addr;
-                const READABLE: bool = #readable;
-                const WRITABLE: bool = #writable;
-                type Value = #reg_self_value;
+        out.extend(quote!{
+            pub struct #reg_struct;
+            impl #reg_struct {
+                pub const ADDR: #addr_ty = #addr;
+                pub const READABLE: bool = #readable;
+                pub const WRITABLE: bool = #writable;
             }
 
-            impl #reg_trait for #name {}
+            impl #addr_trait for #reg_struct {
+                fn as_addr(&self) -> #addr_ty {
+                    #addr
+                }
+            }
         });
 
-        match &reg.value {
-            RegValue::Subfields(subfields) => {
-                for subfield in subfields {
-                    if subfield.value_range.is_some() {
-                        vars.add_part(
-                            subfield.access.unwrap_or(reg.access),
-                            subfield.value_name.to_string(),
-                            reg.reg_name.clone(),
-                            subfield.reg_range.unwrap().into(),
-                            subfield.value_range.unwrap().into()
-                        );
-                    } else {
-                        vars.add_subfield(
-                            subfield.access.unwrap_or(reg.access),
-                            subfield.value_name.to_string(),
-                            reg.reg_name.clone(),
-                            subfield.reg_range.unwrap().into()
-                        )
-                    }
-                }
-            },
-            RegValue::Single(subfield) => {
-                if subfield.value_range.is_some() {
-                    vars.add_part(
-                        subfield.access.unwrap_or(reg.access),
-                        subfield.value_name.to_string(),
-                        reg.reg_name.clone(),
-                        subfield.reg_range.unwrap().into(),
-                        subfield.value_range.unwrap().into()
-                    );
-                } else {
-                    vars.add_passthrough(
-                        subfield.access.unwrap_or(reg.access),
-                        subfield.value_name.to_string(),
-                        reg.reg_name.clone(),
-                    )
-                }
-            },
-            RegValue::None => {},
+        if readable {
+            out.extend(quote! {
+                impl ReadableAddr for #reg_struct {}
+            });
+        }
+
+        if writable {
+            out.extend(quote! {
+                impl WritableAddr for #reg_struct {}
+            });
         }
     }
 
-    let mut read_fns = TokenStream2::new();
-    let mut write_fns = TokenStream2::new();
+    for (_, var) in vars {
+        let IoFn { read, write } = gen_io_fn(var);
 
-    for (name, value) in vars.map {
-        match value {
-            Value::Parts(parts) => {
-                let setter = "set_".to_string() + &name;
-                
-                let mut max = 0;
-                for part in &parts.parts {
-                    max = max.max(part.value_range.1);
+        let name = var.name;
+        let set_var = ident!("set_{}", name);
+        let var_ty = var.ty;
+
+        if var.access.readable {
+            read_out.extend(quote! {
+                fn #var() -> impl core::future::Future<Output = Result<#var_ty, Self::Error>> {
+                    #read
                 }
+            })
+        }
 
-                let ty = nearest_prim(max as usize);
-
-                if parts.access.writable() && parts.parts.iter().all(|part| part.value_range.1 - part.value_range.0 == 7 && part.value_range.0 % 8 == 0) {
-                    let mut out = TokenStream2::new();
-
-                    for part in &parts.parts {
-                        let reg = &part.reg;
-                        let shift = part.reg_range.0;
-                        out.extend(quote! {
-                            self.write_addr(#reg::ADDR, (value >> #shift) as u8).await?;
-                        });
-                    }
-
-                    write_fns.extend(quote! {
-                        fn #setter (&mut self, value: #ty) -> impl core::future::Future<Output = Result<(), Self::Error>> {
-                            async {
-                                #out
-                            }
-                        }
-                    })
+        if var.access.writable {
+            write_out.extend(quote! {
+                fn #set_var(value: #word_ty) -> impl core::future::Future<Output = Result<(), Self::Error>> {
+                    #write
                 }
-
-                if parts.access.readable() {
-                    let mut out = TokenStream2::new();
-
-                    for part in &parts.parts {
-                        let reg = &part.reg;
-                        let shift = part.reg_range.0;
-                        let size = part.reg_range.1 - part.reg_range.0;
-                        out.extend(quote! {
-                            result |= (self.read_addr(#reg::ADDR).await? << shift) % size;
-                        });
-                    }
-
-                    read_fns.extend(quote! {
-                        fn #name (&mut self) -> impl core::future::Future<Output = Result<(), Self::Error>> {
-                            async {
-                                let mut result: #ty = 0;
-                                #out
-                                result
-                            }
-                        }
-                    })
-                }
-            },
-            Value::Subfield(value) => {
-                if value.access.writable() {
-
-                }
-            },
-            Value::Passthrough(value) => {
-                
-            }
+            })
         }
     }
 
     out.extend(quote! {
-        pub trait #reg_trait: periphs::Register<u8, u8> {}
-        pub trait #write_trait {
-            type Error;
-        
-            fn write_addr(&mut self, addr: #addr_ty, value: #reg_int_ty) -> impl core::future::Future<Output = Result<(), Self::Error>>;
-        
-            fn write_reg<R: #reg_trait + periphs::Writable>(&mut self, value: R::Value) -> impl core::future::Future<Output = Result<(), Self::Error>> {
-                let value: periphs::RegValue<#reg_int_ty> = value.into();
-                self.write_addr(R::ADDR, value.0)
-            }
-
-            #write_fns
+        pub trait #addr_trait {
+            fn as_addr(&self) -> #addr_ty;
         }
-        
+        pub trait ReadableAddr: #addr_trait {}
+        pub trait WritableAddr: #addr_trait {}
+
+        impl #addr_trait for #addr_ty {
+            fn as_addr(&self) -> #addr_ty {
+                *self
+            }
+        }
+        impl ReadableAddr for #addr_ty {}
+        impl WritableAddr for #addr_ty {}
+
         pub trait #read_trait {
             type Error;
-        
-            fn read_addr(&mut self, addr: #addr_ty) -> impl core::future::Future<Output = Result<#reg_int_ty, Self::Error>>;
-        
-            fn read_reg<R: #reg_trait + periphs::Readable>(&mut self) -> impl core::future::Future<Output = Result<R::Value, Self::Error>> {
+
+            fn read_contiguous<const WORDS: usize>(
+                &mut self,
+                addr: impl ReadableAddr
+            ) -> impl core::future::Future<Output = Result<[#word_ty, WORDS], Self::Error>>;
+
+            fn read(
+                &mut self,
+                addr: impl ReadableAddr
+            ) -> impl core::future::Future<Output = Result<#word_ty, Self::Error>> {
                 async {
-                    match self.read_addr(R::ADDR).await {
-                        Ok(val) => Ok(periphs::RegValue(val).into()),
+                    match self.read_contiguous::<1>(addr).await {
+                        Ok(res) => Ok(res[0]),
                         Err(err) => Err(err)
                     }
                 }
             }
+        }
 
-            #read_fns
+        pub trait #write_trait {
+            type Error;
+
+            /// Write consecutive words to the peripheral. Most chips have it so
+            /// that when writing more than just one word, the next word goes into the
+            /// next address.
+            fn write_contiguous<const WORDS: usize>(
+                &mut self,
+                addr: impl WritableAddr,
+                values: &[#word_ty],
+            ) -> impl core::future::Future<Output = Result<(), Self::Error>>;
+
+            /// Write one word to the peripheral. Default calls `write_contiguous` with length `1`.
+            fn write(
+                &mut self,
+                addr: impl WritableAddr,
+                value: #word_ty
+            ) -> impl core::future::Future<Output = Result<(), Self::Error>> {
+                self.write_contiguous::<1>(addr, &[value])
+            }
         }
     });
 
-    out.into()
+    todo!();
 }
 
-fn create_value_type(reg: &Reg, out: &mut TokenStream2) -> syn::Ident {
-    let value = syn::Ident::new(&(reg.reg_name.to_string().to_case(Case::UpperCamel) + "Value"), reg.reg_name.span());
-    let mut stok = vec![];
-    let RegValue::Subfields(subfields) = &reg.value else {
-        panic!("Expected subfields on register {}", reg.reg_name)
-    };
+struct IoFn {
+    read: TokenStream2,
+    write: TokenStream2
+}
+fn gen_io_fn(var: Var) -> IoFn {
+    if var.parts.len() == 0 {
+        panic!("Var with no parts???");
+    }
 
-    for subfield in subfields {
-        let name = &subfield.value_name;
-        let (bitmask, offset, is_single) = match subfield.reg_range {
-            Some(BitRange::Single(index)) => (1 << index as u8, index as u8, true),
-            Some(BitRange::Range(start, end)) => ((0xFF << start) % (1 << end) as u8, start as u8, false),
-            None => panic!("Expected something")
-        };
-        if is_single {
-            stok.push(quote! {
-                pub fn #name (&self) -> bool {
-                    unsafe {
-                        // Safety: guarunteed to be one bit
-                        core::mem::transmute((self.0 & #bitmask) >> #offset)
-                    }
+    let name = var.parts[0].var;
+
+    if var.parts.len() == 1
+        && var.parts[0].reg_range == BitRange::Entire
+        && var.parts[0].var_range == BitRange::Entire
+    {
+        let part = var.parts[0];
+        let reg = part.reg;
+        return IoFn {
+            read: quote! {
+                self.read(#reg)
+            },
+            write: quote! {
+                self.write(#reg)
+            }
+        }
+    }
+
+    let gen = IdentGen::new();
+
+    struct Contig {
+        start: Ident,
+        start_addr: usize,
+        /// Ident that corresponds to each word.
+        words: Vec<Ident>
+    }
+
+    let mut read_var_out = TokenStream2::new();
+    let mut write_var_out = TokenStream2::new();
+
+    let mut contigs: Vec<Contig> = vec![];
+
+    let mut acc = gen.next();
+
+    for part in var.parts {
+        let addr = part.reg_addr.base10_parse().unwrap();
+        let ident = gen.next();
+        
+        let mut contig = match contigs.last() {
+            Some(last) if last.start_addr + 1 == addr => {
+                let mut contig = contigs.pop().unwrap();
+                contig.words.push(ident);
+                contig
+            },
+            _ => {
+                Contig {
+                    start: part.reg,
+                    start_addr: addr,
+                    words: vec![ident]
                 }
+            }
+        };
+
+        match part.reg_range {
+            BitRange::Entire => {
+                let var_start = part.var_range.start().unwrap();
+                let var_end = part.var_range.end().unwrap();
+
+                read_var_out.extend(quote! {
+                    #acc += #ident << #var_start;
+                });
+
+                write_var_out.extend(quote! {
+                    let #ident = ((#acc % (#var_end + 1)) >> #var_start);
+                });
+            },
+            range => {
+                let reg_start = part.reg_range.start().unwrap();
+                let reg_end = part.reg_range.end().unwrap();
+                let var_start = match part.var_range {
+                    BitRange::Entire => 0,
+                    range => range.start().unwrap()
+                };
+
+                read_var_out.extend(quote! {
+                    #acc += ((#ident % (#reg_end + 1)) >> #reg_start) << #var_start;
+                });
+
+                write_var_out.extend(quote! {
+                    let #ident = ((#acc % (#var_end + 1)) >> #var_start) << #reg_start;
+                })
+            }
+        }
+    }
+
+    let mut read_begin = TokenStream2::new();
+    let mut write_end = TokenStream2::new();
+
+    for contig in contigs {
+        if contig.words.len() == 1 {
+            let ident = contig.words[0];
+            let reg = contig.start;
+
+            read_begin.extend(quote! {
+                let #ident = self.read(#reg).await?;
+            });
+
+            write_end.extend(quote! {
+                self.write(#reg, #ident).await?;
             });
         } else {
-            stok.push(quote! {
-                pub fn #name (&self) -> u8 {
-                    (self.0 & #bitmask) >> #offset
-                }
+            let words = contig.words.iter();
+            let len = contig.words.len();
+            let start = contig.start;
+
+            read_begin.extend(quote! {
+                let [#(#words),*] = self.read_contiguous::<#len>(#start).await?;
+            });
+
+            write_end.extend(quote! {
+                self.write_contiguous::<#len>(#start, &[#(#words),*]).await?;
             });
         }
     }
-    
-    out.extend(quote! {
-        pub struct #value (pub u8);
 
-        impl #value {
-            #(#stok)*
-        }
-
-        impl From<periphs::RegValue<u8>> for #value {
-            fn from(value: periphs::RegValue<u8>) -> Self {
-                #value(value.0)
+    return IoFn {
+        read: quote! {
+            async {
+                #read_begin
+                let mut #acc = 0;
+                #read_var_out
+                Ok(#acc)
+            }
+        },
+        write: quote! {
+            async {
+                let mut #acc = value;
+                #write_var_out
+                #write_end
+                Ok(())
             }
         }
-
-        impl From<#value> for periphs::RegValue<u8> {
-            fn from(value: #value) -> Self {
-                periphs::RegValue(value.0)
-            }
-        }
-    });
-
-    value
-}
-
-#[proc_macro_derive(RegValue)]
-pub fn derive_reg_value(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    match input.data {
-        Data::Enum(_) => {},
-        _ => return quote! { compile_error!("Only enums can use `#[derive(RegValue)]`") }.into()
-    }
-
-    let rich = input.ident;
-
-    let mut repr = None;
-
-    for attr in input.attrs {
-        let ident = attr.meta.path().get_ident();
-        match ident {
-            Some(ident) if ident.to_string() == "repr" => {},
-            _ => continue
-        }
-
-        let Ok(list) = attr.meta.require_list() else {
-            continue;
-        };
-
-        let Some(TokenTree::Group(group)) = list.tokens.clone().into_iter().next() else {
-            continue;
-        };
-
-        let Some(TokenTree::Ident(_repr)) = group.stream().into_iter().next() else {
-            continue;
-        };
-
-        repr = Some(_repr);
-    };
-
-    let Some(prim) = repr else {
-        return quote! { compile_error!("`#[repr(...)]` is required") }.into()
-    };
-    
-    return quote! {
-        impl From<#rich> for RegValue<#prim> {
-            fn from(value: #rich) -> Self {
-                RegValue(value as #prim)
-            }
-        }
-    }.into()
-}
-
-fn exact_prim(num_bits: usize) -> TokenStream2 {
-    match num_bits {
-        8 => quote! { u8 },
-        16 => quote! { u16 },
-        32 => quote! { u32 },
-        64 => quote! { u64 },
-        128 => quote! { u128 },
-        _ => quote! { compile_error!("Unsupported bit width") }
-    }
-}
-
-fn nearest_prim(num_bits: usize) -> TokenStream2 {
-    match num_bits {
-        0..=8 => quote! { u8 },
-        ..=16 => quote! { u16 },
-        ..=32 => quote! { u32 },
-        ..=64 => quote! { u64 },
-        ..=128 => quote! { u128 },
-        _ => quote! { compile_error!("Unsupported bit width") }
-    }
-}
-
-fn booltok(bool: bool) -> TokenStream2 {
-    if bool {
-        quote! { true }
-    } else {
-        quote! { false }
     }
 }
