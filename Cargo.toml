@@ -2,6 +2,9 @@
 name = "spi-handle"
 version = "0.1.0"
 edition = "2021"
+license = "BSD0"
+repository = "https://github.com/SerenaLynas/spi-handle.git"
+description = "`SpiHandle` trait"
 
 [dependencies]
 embedded-hal-async = "1.0.0"
