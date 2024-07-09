@@ -2,7 +2,7 @@
 name = "spi-handle"
 version = "0.1.0"
 edition = "2021"
-license = "BSD0"
+license = "0BSD"
 repository = "https://github.com/SerenaLynas/spi-handle.git"
 description = "`SpiHandle` trait"
 
