@@ -1,8 +1,13 @@
-use embassy_stm32::spi::{ self as em_spi, SckPin, MisoPin, MosiPin, RxDma, TxDma, Instance as EmSpiInstance, Spi as EmSpi };
+use embassy_stm32::{flash::Blocking, gpio::Output, mode::Async, spi::{ self as em_spi, Instance as EmSpiInstance, MisoPin, Mode, MosiPin, RxDma, SckPin, Spi as EmSpi, TxDma }, Peripheral};
 use embedded_hal_async::spi::SpiBus;
 use sirin_macros::SpiError;
+use spi_handle::SpiHandle;
 
-use super::SpiError;
+use crate::sync::Mutex;
+
+use super::SpiDev;
+
+pub type Spi = EmSpi<'static, Async>;
 
 pub trait SpiConfig {
     type Spi: EmSpiInstance;
@@ -14,24 +19,56 @@ pub trait SpiConfig {
 }
 
 /// TODO: better name
-pub struct SpiConfigStruct<S: SpiConfig> {
-    pub spi: S::Spi,
-    pub sck: S::Sck,
-    pub miso: S::Miso,
-    pub mosi: S::Mosi,
-    pub dma_tx: S::TxDma,
-    pub dma_rx: S::RxDma,
+pub struct SpiConfigStruct<
+        Spi: EmSpiInstance,
+        Sck: SckPin<Spi>,
+        Mosi: MosiPin<Spi>,
+        Miso: MisoPin<Spi>,
+        TTxDma: TxDma<Spi>,
+        TRxDma: RxDma<Spi>,
+    > {
+    pub spi: Spi,
+    pub sck: Sck,
+    pub miso: Miso,
+    pub mosi: Mosi,
+    pub dma_tx: TTxDma,
+    pub dma_rx: TRxDma,
+    pub config: em_spi::Config
 }
 
-#[derive(SpiError)]
-pub struct SpiInstance<S: SpiConfig> {
-    embassy_spi: EmSpi<'static, S::Spi, S::TxDma, S::RxDma>
+impl <
+    Spi: EmSpiInstance,
+    Sck: SckPin<Spi>,
+    Miso: MisoPin<Spi>,
+    Mosi: MosiPin<Spi>,
+    TTxDma: TxDma<Spi>,
+    TRxDma: RxDma<Spi>,
+> SpiConfig for SpiConfigStruct<Spi, Sck, Mosi, Miso, TTxDma, TRxDma> {
+    type Spi = Spi;
+    type Sck = Sck;
+    type Miso = Miso;
+    type Mosi = Mosi;
+    type TxDma = TTxDma;
+    type RxDma = TRxDma;
 }
 
-impl <S: SpiConfig> SpiInstance<S> {
-    pub fn new(config: SpiConfigStruct<S>) -> Self {
+//#[derive(SpiError)]
+pub struct SpiInstance {
+    spi_mutex: Mutex<Spi>
+}
+
+impl SpiInstance {
+    /// SAFETY: the caller must insure the returned value is never moved.
+    pub unsafe fn new<T: EmSpiInstance>(config: SpiConfigStruct<
+        T,
+        impl SckPin<T> + 'static,
+        impl MosiPin<T> + 'static,
+        impl MisoPin<T> + 'static,
+        impl TxDma<T> + 'static,
+        impl RxDma<T> + 'static
+    >) -> Self {
         Self {
-            embassy_spi: EmSpi::new(
+            spi_mutex: Mutex::new(Spi::new(
                 config.spi,
                 config.sck,
                 config.mosi,
@@ -39,29 +76,19 @@ impl <S: SpiConfig> SpiInstance<S> {
                 config.dma_tx,
                 config.dma_rx,
                 em_spi::Config::default()
-            )
+            ))
         }
+    }
+
+    pub fn handle(&'static self, cs: Output<'static>) -> <Self as WithSpiHandle>::Handle<'static> {
+        SpiDev::new(&self.spi_mutex, cs)
     }
 }
 
-impl <S: SpiConfig> SpiBus for SpiInstance<S> {
-    async fn read(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
-        self.embassy_spi.read(words).await.map_err(SpiError::from)
-    }
+pub trait WithSpiHandle {
+    type Handle<'a>: SpiHandle;
+}
 
-    async fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-        self.embassy_spi.write(words).await.map_err(SpiError::from)
-    }
-
-    async fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Self::Error> {
-        self.embassy_spi.transfer(read, write).await.map_err(SpiError::from)
-    }
-
-    async fn transfer_in_place(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
-        self.embassy_spi.transfer_in_place(words).await.map_err(SpiError::from)
-    }
-
-    async fn flush(&mut self) -> Result<(), Self::Error> {
-        SpiBus::<u8>::flush(&mut self.embassy_spi).await.map_err(SpiError::from)
-    }
+impl WithSpiHandle for SpiInstance {
+    type Handle<'a> = SpiDev;
 }

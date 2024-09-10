@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "periph/sirin-zeta-rf",
     "sirin",
     "sirin-macros"
 ]
+resolver = "2"

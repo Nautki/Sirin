@@ -6,7 +6,6 @@ use embassy_stm32::spi::{self as em_spi};
 use embedded_hal_async::spi::{SpiBus, ErrorType};
 use embedded_hal_async::spi as hal_spi;
 use sirin_macros::SpiError;
-pub trait Spi: ErrorType<Error = SpiError> + SpiBus {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpiError {
