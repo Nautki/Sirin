@@ -1,11 +1,15 @@
+#![allow(unused)]
+
 use std::{any::TypeId, cmp::Ordering, collections::HashMap, panic::catch_unwind};
 
-use syn::{braced, bracketed, parenthesized, parse::{Parse, ParseStream}, parse_quote, token::{Bracket, Paren}, Ident, LitInt, Result, Token, Type};
+use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
+use syn::{braced, bracketed, parenthesized, parse::{Parse, ParseStream}, parse_quote, token::{Brace, Bracket, Paren, Token}, Attribute, Ident, LitInt, Result, Token, Type};
 
 mod kw {
     use syn::custom_keyword;
 
-    custom_keyword!(periph);
+    custom_keyword!(dev);
     custom_keyword!(regs);
 }
 
@@ -16,12 +20,18 @@ pub struct Periph {
     pub addr_ty: Type,
     pub word_ty: Type,
     pub regs: Vec<Reg>,
-    pub vars: HashMap<String, Var>
+    pub vars: HashMap<String, Var>,
+    pub attr: Vec<Attribute>,
+    pub keywords: Vec<TokenStream>,
 }
 
 impl Parse for Periph {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        input.parse::<kw::periph>()?;
+        let mut keywords = Vec::new();
+        let attr = input.call(Attribute::parse_outer)?;
+
+        keywords.push(input.parse::<kw::dev>()?.into_token_stream());
+
         let name = input.parse::<Ident>()?;
 
         let (addr_ty, word_ty) = if input.peek(Paren) {
@@ -32,14 +42,18 @@ impl Parse for Periph {
             (addr_ty, inside.parse::<Type>()?)
         } else {
             let addr_ty: Type = parse_quote!(u8);
-            (addr_ty.clone(), addr_ty)
+            (addr_ty.clone(), addr_ty.clone())
         };
 
         let inside;
         braced!(inside in input);
         let input = &inside;
 
-        input.parse::<kw::regs>()?;
+        keywords.push(input.parse::<kw::regs>()?.into_token_stream());
+
+        let inside;
+        braced!(inside in input);
+        let input = &inside;
 
         let regs: Vec<Reg> = input.parse_terminated(Reg::parse, Token![,])?.into_iter().collect();
         
@@ -70,8 +84,14 @@ impl Parse for Periph {
                 }
             });
 
-            let end = var.parts.last().unwrap().var_range.end();
-            var.ty = nearest_prim(end + 1);
+            let last = var.parts.last().unwrap();
+            var.ty = match (&last.reg_range, &last.var_range) {
+                (BitRange::Single(_), BitRange::Entire) => parse_quote!(bool),
+                _ => match last.var_range.end() {
+                    Some(end) => nearest_prim(end + 1),
+                    _ => word_ty.clone()
+                }
+            };
         }
         
         Ok(Periph {
@@ -79,13 +99,16 @@ impl Parse for Periph {
             addr_ty,
             word_ty,
             regs,
-            vars
+            vars,
+            attr,
+            keywords
         })
     }
 }
 
 #[derive(Clone)]
 pub struct Reg {
+    pub attr: Vec<Attribute>,
     pub addr: LitInt,
     pub reg: Ident,
     pub access: Access,
@@ -94,7 +117,8 @@ pub struct Reg {
 
 impl Parse for Reg {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let addr = input.parse()?;
+        let attr = input.call(Attribute::parse_outer)?;
+        let addr = input.parse::<LitInt>()?;
         let reg = input.parse::<Ident>()?;
         let access = input.parse()?;
 
@@ -104,30 +128,35 @@ impl Parse for Reg {
             let var_range = BitRange::parse_optional_bracketed(input)?;
 
             vec![VarPart {
+                attr: attr.clone(),
                 reg: reg.clone(),
                 reg_range: BitRange::Entire,
-                reg_addr: addr,
+                reg_addr: addr.clone(),
                 access,
                 var,
                 var_range
             }]
-        } else {
+        } else if input.peek(Brace) {
             let inside;
             braced!(inside in input);
 
             let reg_parts = inside.parse_terminated(OneRegPart::parse, Token![,])?;
 
             reg_parts.into_iter().map(|part| VarPart {
+                attr: part.attr,
                 reg: reg.clone(),
                 reg_range: part.reg_range,
-                reg_addr: addr,
+                reg_addr: addr.clone(),
                 access: part.access.unwrap_or(access),
                 var: part.var,
                 var_range: part.var_range
             }).collect()
+        } else {
+            vec![]
         };
 
         Ok(Reg {
+            attr,
             addr,
             reg,
             access,
@@ -136,8 +165,9 @@ impl Parse for Reg {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OneRegPart {
+    pub attr: Vec<Attribute>,
     pub reg_range: BitRange,
     pub access: Option<Access>,
     pub var: Ident,
@@ -146,6 +176,7 @@ pub struct OneRegPart {
 
 impl Parse for OneRegPart {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attr = input.call(Attribute::parse_outer)?;
         let reg_range = input.parse()?;
         let access = if input.fork().parse::<Access>().is_ok() {
             Some(input.parse()?)
@@ -156,6 +187,7 @@ impl Parse for OneRegPart {
         let var_range = BitRange::parse_optional_bracketed(input)?;
 
         Ok(OneRegPart {
+            attr,
             reg_range,
             access,
             var,
@@ -164,16 +196,17 @@ impl Parse for OneRegPart {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Var {
     pub access: Access,
     pub parts: Vec<VarPart>,
     pub ty: Type
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 
 pub struct VarPart {
+    pub attr: Vec<Attribute>,
     pub reg: Ident,
     pub reg_range: BitRange,
     pub reg_addr: LitInt,
