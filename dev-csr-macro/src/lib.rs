@@ -159,7 +159,7 @@ pub fn dev_csr(input: TokenStream) -> TokenStream {
                 &mut self,
                 addr: impl ReadableAddr
             ) -> impl core::future::Future<Output = core::result::Result<#word_ty, Self::Error>> {
-                async {
+                async move {
                     let mut out = [0];
                     match self.read_contiguous_regs(addr, &mut out).await {
                         Ok(_) => Ok(out[0]),
@@ -239,7 +239,7 @@ fn gen_io_fn(var: &Var) -> IoFn {
 
                 return IoFn {
                     read: Some(quote! {
-                        async {
+                        async move {
                             let word = self.read_reg(#reg).await?;
                             let word = (word >> #index) % 1;
                             unsafe {
@@ -371,7 +371,7 @@ fn gen_io_fn(var: &Var) -> IoFn {
 
     return IoFn {
         read: Some(quote! {
-            async {
+            async move {
                 #read_begin
                 let mut #acc: #var_ty = 0;
                 #read_var_out
@@ -380,7 +380,7 @@ fn gen_io_fn(var: &Var) -> IoFn {
         }),
         write: if should_write {
             Some(quote! {
-                async {
+                async move {
                     let mut #acc = value;
                     #write_var_out
                     #write_end
