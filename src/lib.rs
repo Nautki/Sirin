@@ -9,8 +9,10 @@ dev_csr!{
 
 
 
-            
+
             0x1D MODEM_CONFIG_1 rw {
+                /// 0 -> Explicit Header mode
+                /// 1 -> Implicit Header mode
                 0 implicit_header_mode_on,
                 /// Error coding rate
                 /// 001 -> 4/5
@@ -102,4 +104,36 @@ dev_csr!{
             0x2F IF_FREQ_2 rw if_freq_2,
         }
     }
+}
+
+pub enum ErrorCodingRate {
+    FourFifths = 0b001,
+    FourSixths = 0b010,
+    FourSevenths = 0b011,
+    FourEighths = 0b100
+}
+pub enum SignalBandwidth {
+    Cr7_8 = 0b0000,
+    Cr10_4 = 0b0001,
+    Cr15_6 = 0b0010,
+    Cr20_8 = 0b0011,
+    Cr31_25 = 0b0100,
+    Cr41_7 = 0b0101,
+    Cr62_5 = 0b0110,
+    Cr125 = 0b0111,
+    Cr250 = 0b1000,
+    Cr500 = 0b1001
+}
+
+                /// SF rate (expressed as a base-2logarithm)
+                /// 6 -> 64 chips / symbol
+                /// 7 -> 128 chips / symbol
+                /// 8 -> 256 chips / symbol
+                /// 9 -> 512 chips / symbol
+                /// 10 -> 1024 chips / symbol
+                /// 11 -> 2048 chips / symbol
+                /// 12 -> 4096 chips / symbol
+                /// other values reserved.
+pub enum SpreadingFactor {
+    
 }
