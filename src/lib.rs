@@ -5,16 +5,155 @@ use embedded_hal_async::spi::SpiBus;
 use spi_handle::SpiHandle;
 
 
-dev_csr!{
-    dev Rfm9x {
-        regs {
+dev_csr! {
+    dev Rfm9x{
+        regs{
             /// LoRa base-band FIFO data input/output. FIFO is cleared an not 
             /// accessible when device is in SLEEPmode
-            0x00 REG_FIFO rw fifo,
+            0x00 FIFO rw fifo,
+            0x01 OP_MODE rw{
+                /// 0 is FSK Mode, 1 is LoRA mode
+                /// Can only be modified in sleep mode
+                /// Write opperation on other devices is ignored
+                7 rw long_range_mode,
+                /// This bit operates when device is in LoRa mode; 
+                /// if set it allows access to FSK registers page 
+                /// located in address space (0x0D:0x3F) while in LoRa mode
+                /// 0: Access LoRa registers page 0x0D:0x3F
+                /// 1: Access FSK registers page(in mode LoRa)0x0D:0x3F
+                6 rw access_shared_reg,
+                /// Access Low Frequency Mode registers 
+                /// 0: High Frequency Mode (access to HF test registers) 
+                /// 1: Low Frequency Mode(access to LF test registers)
+                3 r low_freq_mode_on,
+                /// Device modes 
+                /// 000 : SLEEP 
+                /// 001 : STDBY 
+                /// 010 : Frequency synthesis TX(FSTX) 
+                /// 011 : Transmit(TX) 
+                /// 100 : Frequency synthesis RX(FSRX) 
+                /// 101 : Receive continuous(RXCONTINUOUS) 
+                /// 110 : receive single(RXSINGLE) 
+                /// 111 : Channel activity detection(CAD)
+                0..2 rw mode
+                //?rwt?
+            },
+            /// MSB or FR carrier frequency
+            0x06 FR_MSB rw frf_23_16[0..7],
+            0x07 FR_MID rw frf_15_8[0..7],
+            /// LSB or RF carrier frequency
+            0x08 FR_LSB rw frf_7_0[0..7],
+            0x09 PA_CONFIG rw {
+                /// Selects PA output pin
+                /// 0: RFO pin. Output power is limited to +14dBm
+                /// 1: PA_BOOST pin. Output power is limited to +20 dBm
+                7 pa_select,
+                /// Select max output power.
+                /// PMax = 10.8 + 0.6*MaxPower [dBm]
+                4..6 max_power,
+                /// POut = PMax - (15-OutputPower) if PaSelect = 0 (RFO pin)
+                /// POut = 17 - (15-OutputPower) if PaSelect = 1 (PA_BOOST pin)
+                0..3 output_power
+            },
+            0x12 IRQ_FLAG rw {
+                /// Timeout interrupt: writing a 1 clears the IRQ
+                7 rx_time_out,
+                /// Packet reception complete interrupt: writing a 1 clears the IRQ
+                6 rx_done,
+                /// Payload CRC error interrupt: writing a 1 clears the IR
+                5 payload_crc_err,
+                /// Valid header received in Rx: writing a 1 clears theIRQ
+                4 valid_header,
+                /// FIFO Payload transmission complete interrupt: writing a 1 clears the IRQ
+                3 tx_done,
+                /// CAD complete: write to clear: writing a 1 clears the IRQ
+                2 cad_done,
+                /// FHSS change channel interrupt: writing a 1 clears the IR
+                1 fhss_change_channel,
+                /// Valid Lora signal detected during CAD operation: writing a 1clears the IR
+                0 cad_detected,
+            },
+            /// Number of payload bytes of latest packetreceived
+            0x13 RX_NB_BYTES r fifo_rx_bytes[0..7],
+            /// Number of valid headers received since last transition intoRx mode, MSB(15:8). Header and packet counters are reseted in Sleep mode
+            0x14 RX_HEADER_CNT_VALUE_MSB r valid_header_cnt[8..15],
+            /// Number of valid headers received since last transition intoRx mode, LSB(7:0). Header and packet counters are reseted in Sleep mode.
+            0x15 RX_HEADER_CNT_VALUE_LSB r valid_header_cnt[0..7],
+            /// Number of valid packets received since last transition into Rx mode, MSB(15:8). Header and packet counters are reseted in Sleep mode.
+            0x16 RX_PACKET_CNT_VALUE_MSB rw valid_packet_cnt[8..15],
+            /// Number of valid packets received since last transition intoRx mode, LSB(7:0). Header and packet counters are reseted in Sleep mode
+            0x17 RX_PACKET_CNT_VALUE_LSB r valid_packet_cnt[0..7],
+            0x18 MODEM_STAT r {
+                ///Signal detected 
+                0 signal_detected,
+                /// 1 Signal synchronized
+                1 signal_synchronized,
+                /// 2 RX on-going
+                2 rx_on_going,
+                /// 3 Header info valid
+                3 header_info_valid,
+                /// 4 Modem clear
+                4 modem_clear
+                /// Coding rate of last headerreceived
+                5..7 rx_coding_rate,
+            },
+            /// Estimation of SNR on last packet received.In two’s compliment format multiplied by 4. SNR[dB] = PacketSnr[twos complement]/4
+            0x19 PKT_SNR_VALUE r packet_snr[0..7],
+            /// RSSI of the latest packet received (dBm): 
+            ///RSSI[dBm] = -157 + Rssi (using HF output port, SNR >=0)
+            ///or RSSI[dBm] = -164 + Rssi (using LF output port, SNR >= 0)
+            /// (see section 5.5.5 for details)
+            0x1A PKT_RSSI_VALUE r packet_rssi[0..7],
+            /// Current RSSI value (dBm)
+            /// RSSI[dBm] = -157 + Rssi (using HF outputport)
+            /// or RSSI[dBm] = -164 + Rssi (using LF outputport)
+            /// (see section 5.5.5 for details*/
+            0x1B RSSI_VALUE r rssi[0..7],
+            0x1C HOP_CHANNEL r {
+                /// Current value of frequency hopping channel inuse.
+                0..5 fhss_present_channel,
+                /// CRC Information extracted from the received packetheader
+                /// (Explicit header mode only)
+                /// 0 -> Header indicates CRC off
+                /// 1 -> Header indicates CRC on
+                6 crc_on_payload,
+                /// PLL failed to lock while attempting a TX/RX/CAD operation
+                /// 1 -> PLL did not lock
+                /// 0 -> PLL did lock
+                7 pll_time_out,
+            },
+            /// Rise/Fall time of ramp up/down in FSK
+            /// 0000 -> 3.4ms 
+            /// 0001 -> 2ms 
+            /// 0010 -> 1ms 
+            /// 0011 -> 500us 
+            /// 0100 -> 250us 
+            /// 0101 -> 125us 
+            /// 0110 -> 100us 
+            /// 0111 -> 62us 
+            /// 1000 -> 50us 
+            /// 1001 -> 40us 
+            /// 1010 -> 31us 
+            /// 1011 -> 25us 
+            /// 1100 -> 20us 
+            /// 1101 -> 15us 
+            /// 1110 -> 12us 
+            /// 1111 -> 10us
+            0x0A PA_RAMP rw pa_ramp, /// IDK
+            0x0B OCP rw{
+                /// Trimming of OCP current: 
+                /// Imax = 45 + 5 * OcpTrim[mA] if OcpTrim <= 15 (120mA)/
+                /// Imax = -30 + 10 * OcpTrim[mA] if 15 < OcpTrim <= 27 (130 to 240mA) 
+                /// Imax = 240mA for higher settings 
+                /// Default Imax=100mA
+                5 ocp_on,
+                0..4 ocp_trim,
+            },
 
 
 
-
+            
+       
             0x1D MODEM_CONFIG_1 rw {
                 /// 0 -> Explicit Header mode
                 /// 1 -> Implicit Header mode
@@ -226,4 +365,5 @@ impl <S: SpiHandle> WriteRfm9x for Rfm9xIo<S> {
 
         Ok(())
     }
+
 }
