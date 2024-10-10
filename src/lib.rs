@@ -1,4 +1,9 @@
+
 use dev_csr::dev_csr;
+use embedded_hal::spi::ErrorType;
+use embedded_hal_async::spi::SpiBus;
+use spi_handle::SpiHandle;
+
 
 dev_csr!{
     dev Rfm9x {
@@ -125,15 +130,100 @@ pub enum SignalBandwidth {
     Cr500 = 0b1001
 }
 
-                /// SF rate (expressed as a base-2logarithm)
-                /// 6 -> 64 chips / symbol
-                /// 7 -> 128 chips / symbol
-                /// 8 -> 256 chips / symbol
-                /// 9 -> 512 chips / symbol
-                /// 10 -> 1024 chips / symbol
-                /// 11 -> 2048 chips / symbol
-                /// 12 -> 4096 chips / symbol
-                /// other values reserved.
-pub enum SpreadingFactor {
-    
+pub struct Rfm9xIo<S: SpiHandle> {
+    spi: S
+}
+
+
+
+impl <S: SpiHandle> Rfm9xIo<S> {
+    pub async fn read_raw_trim_data(&mut self) -> Result<RawTrimData, <S::Bus as ErrorType>::Error> {
+        let mut data = [0u8; 21];
+        self.read_contiguous_regs(RegCalibData, &mut data).await?;
+
+        macro_rules! bytes {
+            ($b1:expr, $b2:expr) => {
+                ((data[$b1] as u16) << 8) | (data[$b2] as u16)
+            };
+        }
+
+        // deus hoc vult
+        #[allow(unused_mut)]
+        let mut data: RawTrimData = unsafe {
+            core::mem::transmute(data)
+        };
+
+        /*let mut data = RawTrimData {
+            par_t1: bytes!(1, 0), 
+            par_t2: bytes!(3, 2),
+            par_t3: data[4] as i8,
+            par_p1: bytes!(6, 5) as i16,
+            par_p2: bytes!(8, 7) as i16,
+            par_p3: data[9] as i8,
+            par_p4: data[10] as i8,
+            par_p5: bytes!(12, 11),
+            par_p6: bytes!(14, 13),
+            par_p7: data[15] as i8,
+            par_p8: data[16] as i8,
+            par_p9: bytes!(18, 17) as i16,
+            par_p10: data[19] as i8,
+            par_p11: data[20] as i8
+        };*/
+
+        #[cfg(target_endian = "big")]
+        data.swap_bytes();
+
+        Ok(data)
+    }
+
+    pub async fn read_raw_data(&mut self) -> Result<Bmp3RawData, <S::Bus as ErrorType>::Error> {
+        let mut data = [0u8; 6];
+        self.read_contiguous_regs(RegData0, &mut data).await?;
+        let raw_pressure = (data[0] as u32) + ((data[1] as u32) << 8) + ((data[2] as u32) << 16);
+        let raw_temperature = (data[3] as u32) + ((data[4] as u32) << 8) + ((data[5] as u32) << 16);
+
+        Ok(Bmp3RawData {
+            raw_pressure: raw_pressure as u64,
+            raw_temperature: raw_temperature as i64,
+        })
+    }
+}
+
+impl <S: SpiHandle> ReadRfm9x for Rfm9xIo<S> {
+    type Error = <S::Bus as ErrorType>::Error;
+
+    async fn read_contiguous_regs(
+        &mut self,
+        addr: impl ReadableAddr,
+        out: &mut [u8]
+    ) -> Result<(), Self::Error> {
+        let mut bus = self.spi.select().await;
+
+        // set rw bit
+        // write = 1, read = 0
+        let addr: u8 = addr.as_addr() & 0b0111_1111;
+        
+        bus.write(&[addr]).await?;
+        bus.transfer_in_place(out).await?;
+        Ok(())
+    }
+}
+
+impl <S: SpiHandle> WriteRfm9x for Rfm9xIo<S> {
+    type Error = <S::Bus as ErrorType>::Error;
+
+    async fn write_contiguous_regs<const WORDS:usize>(
+        &mut self,
+        addr: impl WritableAddr,
+        values: &[u8]
+    ) -> Result<(), Self::Error> {
+        let mut bus = self.spi.select().await;
+
+        let addr: u8 = addr.as_addr() | 0b1000_0000;
+
+        bus.write(&[addr.as_addr()]).await?;
+        bus.write(values).await?;
+
+        Ok(())
+    }
 }
