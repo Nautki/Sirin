@@ -93,7 +93,7 @@ dev_csr! {
                 /// 3 Header info valid
                 3 header_info_valid,
                 /// 4 Modem clear
-                4 modem_clear
+                4 modem_clear,
                 /// Coding rate of last headerreceived
                 5..7 rx_coding_rate,
             },
