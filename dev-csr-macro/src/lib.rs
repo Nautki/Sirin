@@ -177,7 +177,7 @@ pub fn dev_csr(input: TokenStream) -> TokenStream {
             /// Write consecutive words to the peripheral. Most chips have it so
             /// that when writing more than just one word, the next word goes into the
             /// next address.
-            fn write_contiguous_regs<const WORDS: usize>(
+            fn write_contiguous_regs(
                 &mut self,
                 addr: impl WritableAddr,
                 values: &[#word_ty],
@@ -191,7 +191,7 @@ pub fn dev_csr(input: TokenStream) -> TokenStream {
             ) -> impl core::future::Future<Output = core::result::Result<(), Self::Error>> {
                 async move {
                     let words = [value];
-                    self.write_contiguous_regs::<1>(addr, &words).await
+                    self.write_contiguous_regs(addr, &words).await
                 }
             }
 
