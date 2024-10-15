@@ -10,7 +10,7 @@ dev_csr! {
             /// LoRa base-band FIFO data input/output. FIFO is cleared an not 
             /// accessible when device is in SLEEPmode
             0x00 FIFO rw fifo,
-            0x01 OP_MODE rw{
+            0x01 OP_MODE rw {
                 /// 0 is FSK Mode, 1 is LoRA mode
                 /// Can only be modified in sleep mode
                 /// Write opperation on other devices is ignored
@@ -24,7 +24,7 @@ dev_csr! {
                 /// Access Low Frequency Mode registers 
                 /// 0: High Frequency Mode (access to HF test registers) 
                 /// 1: Low Frequency Mode(access to LF test registers)
-                3 r low_freq_mode_on,
+                3 rw low_freq_mode_on,
                 /// Device modes 
                 /// 000 : SLEEP 
                 /// 001 : STDBY 
@@ -53,6 +53,76 @@ dev_csr! {
                 /// POut = PMax - (15-OutputPower) if PaSelect = 0 (RFO pin)
                 /// POut = 17 - (15-OutputPower) if PaSelect = 1 (PA_BOOST pin)
                 0..3 output_power
+            },
+            /// Rise/Fall time of ramp up/down in FSK
+            /// 0000 -> 3.4ms 
+            /// 0001 -> 2ms 
+            /// 0010 -> 1ms 
+            /// 0011 -> 500us 
+            /// 0100 -> 250us 
+            /// 0101 -> 125us 
+            /// 0110 -> 100us 
+            /// 0111 -> 62us 
+            /// 1000 -> 50us 
+            /// 1001 -> 40us 
+            /// 1010 -> 31us 
+            /// 1011 -> 25us 
+            /// 1100 -> 20us 
+            /// 1101 -> 15us 
+            /// 1110 -> 12us 
+            /// 1111 -> 10us
+            0x0A PA_RAMP rw pa_ramp, /// IDK
+            0x0B OCP rw{
+                /// Trimming of OCP current: 
+                /// Imax = 45 + 5 * OcpTrim[mA] if OcpTrim <= 15 (120mA)/
+                /// Imax = -30 + 10 * OcpTrim[mA] if 15 < OcpTrim <= 27 (130 to 240mA) 
+                /// Imax = 240mA for higher settings 
+                /// Default Imax=100mA
+                5 ocp_on,
+                0..4 ocp_trim,
+            },
+            0x0C LNA rw {
+                ///High Frequency (RFI_HF) LNA currentadjustment, 00 -> Default LNA current
+                ///11 -> Boost on, 150% LNA current
+                0..1 lna_boost_hf,
+                ///Low Frequency (RFI_LF) LNA current adjustment, 00 -> Default LNA current
+                ///Other -> Reserved
+                3..4 lna_boost_lf,
+                ///LNA gain setting: 
+                ///000 -> not used
+                ///001 -> G1 = maximum gain 010 G2
+                ///011 -> G 3
+                ///100 -> G4
+                ///101 -> G5
+                ///110 -> G6 = minimum gain 
+                ///111  -> not used
+                5..7 lna_gain
+            },
+            ///SPI interface address pointer in FIFO data buffer.
+            0x0D FIFO_ADDR_PTR rw fifo_addr_ptr[0..7],
+            ///write base address in FIFO data buffer for TX modulator
+            0x0E FIFO_TX_BASE_ADDR rw fifo_tx_base_addr[0..7],
+            ///read base address in FIFO data buffer for RX demodulator
+            0x0F FIFO_RX_BASE_ADDR rw fifo_rx_base_addr[0..7],
+            ///Start address (in data buffer) of last packet received
+            0x10 FIFO_RX_CURRENT_ADDR r fifo_rx_current_addr[0..7],
+            0x11 IRQ_FLAGS_MASK rw {
+                ///Cad Detected Interrupt Mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                0 cad_detected_mask,
+                ///FHSS change channel interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                1 fhss_change_channel_mask,
+                ///CAD complete interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                2 cad_done_mask,
+                ///FIFO Payload transmission complete interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                3 tx_done_mask,
+                ///Valid header received in Rx mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                4 valid_header_mask,
+                ///Payload CRC error interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                5 payload_crc_error_mask,
+                ///Packet reception complete interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                6 rx_done_mask,
+                ///Timeout interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
+                7 rx_timeout_mask
             },
             0x12 IRQ_FLAG rw {
                 /// Timeout interrupt: writing a 1 clears the IRQ
@@ -121,79 +191,6 @@ dev_csr! {
                 /// 0 -> PLL did lock
                 7 pll_time_out,
             },
-            /// Rise/Fall time of ramp up/down in FSK
-            /// 0000 -> 3.4ms 
-            /// 0001 -> 2ms 
-            /// 0010 -> 1ms 
-            /// 0011 -> 500us 
-            /// 0100 -> 250us 
-            /// 0101 -> 125us 
-            /// 0110 -> 100us 
-            /// 0111 -> 62us 
-            /// 1000 -> 50us 
-            /// 1001 -> 40us 
-            /// 1010 -> 31us 
-            /// 1011 -> 25us 
-            /// 1100 -> 20us 
-            /// 1101 -> 15us 
-            /// 1110 -> 12us 
-            /// 1111 -> 10us
-            0x0A PA_RAMP rw pa_ramp, /// IDK
-            0x0B OCP rw{
-                /// Trimming of OCP current: 
-                /// Imax = 45 + 5 * OcpTrim[mA] if OcpTrim <= 15 (120mA)/
-                /// Imax = -30 + 10 * OcpTrim[mA] if 15 < OcpTrim <= 27 (130 to 240mA) 
-                /// Imax = 240mA for higher settings 
-                /// Default Imax=100mA
-                5 ocp_on,
-                0..4 ocp_trim,
-            },
-
-            0x0C LNA rw {
-                ///High Frequency (RFI_HF) LNA currentadjustment, 00 -> Default LNA current
-                ///11 -> Boost on, 150% LNA current
-                0..1 lna_boost_hf,
-                ///Low Frequency (RFI_LF) LNA current adjustment, 00 -> Default LNA current
-                ///Other -> Reserved
-                3..4 lna_boost_lf,
-                ///LNA gain setting: 
-                ///000 -> not used
-                ///001 -> G1 = maximum gain 010 G2
-                ///011 -> G 3
-                ///100 -> G4
-                ///101 -> G5
-                ///110 -> G6 = minimum gain 
-                ///111  -> not used
-                5..7 lna_gain
-            },
-            ///SPI interface address pointer in FIFO data buffer.
-            0x0D FIFO_ADDR_PTR r fifo_addr_ptr[0..7],
-            ///write base address in FIFO data buffer for TX modulator
-            0x0E FIFO_TX_BASE_ADDR rw fifo_tx_base_addr[0..7],
-            ///read base address in FIFO data buffer for RX demodulator
-            0x0F FIFO_RX_BASE_ADDR rw fifo_rx_base_addr[0..7],
-            ///Start address (in data buffer) of last packet received
-            0x10 FIFO_RX_CURRENT_ADDR r fifo_rx_current_addr[0..7],
-            0x11 IRQ_FLAGS_MASK rw {
-                ///Cad Detected Interrupt Mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                0 cad_detected_mask,
-                ///FHSS change channel interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                1 fhss_change_channel_mask,
-                ///CAD complete interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                2 cad_done_mask,
-                ///FIFO Payload transmission complete interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                3 tx_done_mask,
-                ///Valid header received in Rx mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                4 valid_header_mask,
-                ///Payload CRC error interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                5 payload_crc_error_mask,
-                ///Packet reception complete interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                6 rx_done_mask,
-                ///Timeout interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
-                7 rx_timeout_mask
-            },
-            
-       
             0x1D MODEM_CONFIG_1 rw {
                 /// 0 -> Explicit Header mode
                 /// 1 -> Implicit Header mode
@@ -308,63 +305,47 @@ pub enum SignalBandwidth {
     Cr250 = 0b1000,
     Cr500 = 0b1001
 }
+                /// 000 : SLEEP 
+                /// 001 : STDBY 
+                /// 010 : Frequency synthesis TX(FSTX) 
+                /// 011 : Transmit(TX) 
+                /// 100 : Frequency synthesis RX(FSRX) 
+                /// 101 : Receive continuous(RXCONTINUOUS) 
+                /// 110 : receive single(RXSINGLE) 
+                /// 111 : Channel activity detection(CAD)
+pub enum Mode {
+    Sleep = 0b000,
+    Stdby = 0b001,
+    Fstx =  0b010,
+    Tx = 0b011,
+    Fsrx =  0b100,
+    RxContinuous = 0b101,
+    RxSingle = 0b110,
+    Cad = 0b111,
+}
 
 pub struct Rfm9xIo<S: SpiHandle> {
     spi: S
 }
 
-
-
 impl <S: SpiHandle> Rfm9xIo<S> {
-    pub async fn read_raw_trim_data(&mut self) -> Result<RawTrimData, <S::Bus as ErrorType>::Error> {
-        let mut data = [0u8; 21];
-        self.read_contiguous_regs(RegCalibData, &mut data).await?;
-
-        macro_rules! bytes {
-            ($b1:expr, $b2:expr) => {
-                ((data[$b1] as u16) << 8) | (data[$b2] as u16)
-            };
-        }
-
-        // deus hoc vult
-        #[allow(unused_mut)]
-        let mut data: RawTrimData = unsafe {
-            core::mem::transmute(data)
-        };
-
-        /*let mut data = RawTrimData {
-            par_t1: bytes!(1, 0), 
-            par_t2: bytes!(3, 2),
-            par_t3: data[4] as i8,
-            par_p1: bytes!(6, 5) as i16,
-            par_p2: bytes!(8, 7) as i16,
-            par_p3: data[9] as i8,
-            par_p4: data[10] as i8,
-            par_p5: bytes!(12, 11),
-            par_p6: bytes!(14, 13),
-            par_p7: data[15] as i8,
-            par_p8: data[16] as i8,
-            par_p9: bytes!(18, 17) as i16,
-            par_p10: data[19] as i8,
-            par_p11: data[20] as i8
-        };*/
-
-        #[cfg(target_endian = "big")]
-        data.swap_bytes();
-
-        Ok(data)
+    async fn set_mode(&mut self, mode: Mode) -> Result<(), <S::Bus as ErrorType>::Error> {
+        self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await
     }
 
-    pub async fn read_raw_data(&mut self) -> Result<Bmp3RawData, <S::Bus as ErrorType>::Error> {
-        let mut data = [0u8; 6];
-        self.read_contiguous_regs(RegData0, &mut data).await?;
-        let raw_pressure = (data[0] as u32) + ((data[1] as u32) << 8) + ((data[2] as u32) << 16);
-        let raw_temperature = (data[3] as u32) + ((data[4] as u32) << 8) + ((data[5] as u32) << 16);
+    async fn transmit(&mut self, data: &[u8]) -> Result<(), <S::Bus as ErrorType>::Error> {
+        let len: u8 = data.len().try_into().unwrap();
 
-        Ok(Bmp3RawData {
-            raw_pressure: raw_pressure as u64,
-            raw_temperature: raw_temperature as i64,
-        })
+        // Write FIFO
+        self.set_fifo_tx_base_addr(0x00).await?;
+        self.set_fifo_addr_ptr(0x00).await?;
+
+        self.write_contiguous_regs(RegFifo, data).await?;
+        self.set_payload_length(len).await?;
+
+        self.set_mode(Mode::Tx).await?;
+
+        Ok(())
     }
 }
 
@@ -391,7 +372,7 @@ impl <S: SpiHandle> ReadRfm9x for Rfm9xIo<S> {
 impl <S: SpiHandle> WriteRfm9x for Rfm9xIo<S> {
     type Error = <S::Bus as ErrorType>::Error;
 
-    async fn write_contiguous_regs<const WORDS:usize>(
+    async fn write_contiguous_regs(
         &mut self,
         addr: impl WritableAddr,
         values: &[u8]
