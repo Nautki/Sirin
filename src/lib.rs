@@ -347,6 +347,15 @@ impl <S: SpiHandle> Rfm9xIo<S> {
 
         Ok(())
     }
+
+    async fn recieve(&mut self, data: &mut [u8]) -> Result<(), <S::Bus as ErrorType>::Error> {
+        
+        
+        
+        self.set_mode(Mode::RxSingle).await?;
+
+        Ok(())
+    }
 }
 
 impl <S: SpiHandle> ReadRfm9x for Rfm9xIo<S> {
