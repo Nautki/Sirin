@@ -1,4 +1,9 @@
+#![no_std]
+
+use core::error;
+
 use dev_csr::dev_csr;
+use embassy_futures::yield_now;
 use embedded_hal::spi::ErrorType;
 use embedded_hal_async::spi::SpiBus;
 use spi_handle::SpiHandle;
@@ -142,8 +147,8 @@ dev_csr! {
                 /// Valid Lora signal detected during CAD operation: writing a 1clears the IR
                 0 cad_detected,
             },
-            /// Number of payload bytes of latest packetreceived
-            0x13 RX_NB_BYTES r fifo_rx_bytes[0..7],
+            /// Number of payload bytes of latest packet received
+            0x13 RX_NB_BYTES r fifo_rx_nb_bytes[0..7],
             /// Number of valid headers received since last transition intoRx mode, MSB(15:8). Header and packet counters are reseted in Sleep mode
             0x14 RX_HEADER_CNT_VALUE_MSB r valid_header_cnt[8..15],
             /// Number of valid headers received since last transition intoRx mode, LSB(7:0). Header and packet counters are reseted in Sleep mode.
@@ -305,14 +310,6 @@ pub enum SignalBandwidth {
     Cr250 = 0b1000,
     Cr500 = 0b1001
 }
-                /// 000 : SLEEP 
-                /// 001 : STDBY 
-                /// 010 : Frequency synthesis TX(FSTX) 
-                /// 011 : Transmit(TX) 
-                /// 100 : Frequency synthesis RX(FSRX) 
-                /// 101 : Receive continuous(RXCONTINUOUS) 
-                /// 110 : receive single(RXSINGLE) 
-                /// 111 : Channel activity detection(CAD)
 pub enum Mode {
     Sleep = 0b000,
     Stdby = 0b001,
@@ -326,6 +323,12 @@ pub enum Mode {
 
 pub struct Rfm9xIo<S: SpiHandle> {
     spi: S
+}
+
+pub enum RxError<S> {
+    Spi(S),
+    Crc,
+    Timeout,
 }
 
 impl <S: SpiHandle> Rfm9xIo<S> {
@@ -348,15 +351,28 @@ impl <S: SpiHandle> Rfm9xIo<S> {
         Ok(())
     }
 
-    async fn recieve(&mut self, data: &mut [u8]) -> Result<(), <S::Bus as ErrorType>::Error> {
+    pub async fn recieve(&mut self, data: &mut [u8]) -> Result<u8, RxError<<S::Bus as ErrorType>::Error>> {
         
+        self.set_mode(Mode::RxSingle).await.map_err(|e| RxError::Spi(e))?;
         
-        
-        self.set_mode(Mode::RxSingle).await?;
+        while !self.rx_done().await.map_err(|e| RxError::Spi(e))? {
+            yield_now().await;
+        }
 
-        Ok(())
+        if self.payload_crc_err().await.map_err(|e| RxError::Spi(e))? {
+            self.set_mode(Mode::Stdby).await.map_err(|e| RxError::Spi(e))?;
+            return Err(RxError::Crc)
+        }
+
+        let rx_cur_addr: u8 = self.fifo_rx_current_addr().await.map_err(|e| RxError::Spi(e))?;
+        self.set_fifo_addr_ptr(rx_cur_addr).await.map_err(|e| RxError::Spi(e))?;
+        let len: u8 = self.fifo_rx_nb_bytes().await.map_err(|e| RxError::Spi(e))?;
+        self.read_contiguous_regs(RegFifo, data).await.map_err(|e| RxError::Spi(e))?;
+        self.set_mode(Mode::Stdby).await.map_err(|e| RxError::Spi(e))?;
+        Ok(len)
     }
 }
+
 
 impl <S: SpiHandle> ReadRfm9x for Rfm9xIo<S> {
     type Error = <S::Bus as ErrorType>::Error;
