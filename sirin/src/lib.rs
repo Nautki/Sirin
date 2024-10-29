@@ -8,6 +8,7 @@ use bmp3::Bmp3;
 use embassy_executor::{Executor, Spawner};
 use embassy_stm32::{ gpio::{Level, Output, Speed}, spi as em_spi, time::mhz, Config, Peripherals };
 use gpio::GpioPins;
+use rfm9x::Rfm9x;
 use spi::{Spi, SpiConfig, SpiConfigStruct, SpiDev, SpiInstance, WithSpiHandle};
 
 pub mod spi;
@@ -19,7 +20,7 @@ pub mod triplet;
 pub struct Sirin {
     //pub imu: Lsm6Dso,
     //pub flash: W25Q,
-    //pub radio: Sx127x,
+    pub radio: Rfm9x<SpiDev>,
     //pub gps: S1315F8,
     pub spawner: Spawner,
     pub spi1: SpiInstance,
@@ -120,6 +121,10 @@ impl Sirin {
             let baro: *mut Bmp3<SpiDev> = ptr!(baro);
             let baro_cs = Output::new(p.PA2, Level::High, Speed::High);
             let baro_future = Bmp3::new((*spi1).handle(baro_cs));
+
+            let radio: *mut Rfm9x<SpiDev> = ptr!(radio);
+            let radio_cs = Output::new(p.PC8, Level::High, Speed::High);
+            radio.write(Rfm9x::new((*spi2).handle(radio_cs)));
 
             // TODO: JOIN FUTURES, AWAIT
             baro.write(baro_future.await.unwrap());

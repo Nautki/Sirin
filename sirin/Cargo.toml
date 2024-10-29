@@ -30,3 +30,4 @@ derive-new = "0.6.0"
 spi-handle = { version = "0.1.0", path = "../../spi-handle" }
 bmp3 = { version = "0.1.0", path = "../../bmp3" }
 defmt = "0.3.8"
+rfm9x = { version = "0.1.0", path = "../../rfm9x" }
