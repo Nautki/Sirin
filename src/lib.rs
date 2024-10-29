@@ -339,6 +339,8 @@ impl <S: SpiHandle> Rfm9xIo<S> {
     async fn transmit(&mut self, data: &[u8]) -> Result<(), <S::Bus as ErrorType>::Error> {
         let len: u8 = data.len().try_into().unwrap();
 
+        self.set_mode(Mode::Stdby).await?;
+        
         // Write FIFO
         self.set_fifo_tx_base_addr(0x00).await?;
         self.set_fifo_addr_ptr(0x00).await?;
@@ -348,10 +350,14 @@ impl <S: SpiHandle> Rfm9xIo<S> {
 
         self.set_mode(Mode::Tx).await?;
 
+        while !self.tx_done().await? {
+            yield_now().await;
+        }
+
         Ok(())
     }
 
-    pub async fn recieve(&mut self, data: &mut [u8]) -> Result<u8, RxError<<S::Bus as ErrorType>::Error>> {
+    pub async fn recieve_single(&mut self, data: &mut [u8]) -> Result<u8, RxError<<S::Bus as ErrorType>::Error>> {
         
         self.set_mode(Mode::RxSingle).await.map_err(|e| RxError::Spi(e))?;
         
@@ -371,6 +377,7 @@ impl <S: SpiHandle> Rfm9xIo<S> {
         self.set_mode(Mode::Stdby).await.map_err(|e| RxError::Spi(e))?;
         Ok(len)
     }
+    
 }
 
 
