@@ -325,18 +325,29 @@ pub struct Rfm9xIo<S: SpiHandle> {
     spi: S
 }
 
-pub enum RxError<S> {
-    Spi(S),
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Rfm9xError {
+    Spi(SpiError),
     Crc,
     Timeout,
 }
 
+impl From<SpiError> for Rfm9xError {
+    fn from(value: SpiError) -> Self {
+        Rfm9xError::Spi(value)
+    }
+}
+
+type Error = Rfm9xError;
+
 impl <S: SpiHandle> Rfm9xIo<S> {
-    async fn set_mode(&mut self, mode: Mode) -> Result<(), <S::Bus as ErrorType>::Error> {
-        self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await
+    async fn set_mode(&mut self, mode: Mode) -> Result<(), Error> {
+        self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await?;
+        Ok(())
     }
 
-    async fn transmit(&mut self, data: &[u8]) -> Result<(), <S::Bus as ErrorType>::Error> {
+    async fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
         let len: u8 = data.len().try_into().unwrap();
 
         self.set_mode(Mode::Stdby).await?;
@@ -357,24 +368,28 @@ impl <S: SpiHandle> Rfm9xIo<S> {
         Ok(())
     }
 
+<<<<<<< HEAD
     pub async fn recieve_single(&mut self, data: &mut [u8]) -> Result<u8, RxError<<S::Bus as ErrorType>::Error>> {
+=======
+    pub async fn recieve(&mut self, data: &mut [u8]) -> Result<u8, Error> {
+>>>>>>> 28ce53fa655587d940fdb1637084f0dcd651bd27
         
-        self.set_mode(Mode::RxSingle).await.map_err(|e| RxError::Spi(e))?;
+        self.set_mode(Mode::RxSingle).await?;
         
-        while !self.rx_done().await.map_err(|e| RxError::Spi(e))? {
+        while !self.rx_done().await? {
             yield_now().await;
         }
 
-        if self.payload_crc_err().await.map_err(|e| RxError::Spi(e))? {
-            self.set_mode(Mode::Stdby).await.map_err(|e| RxError::Spi(e))?;
-            return Err(RxError::Crc)
+        if self.payload_crc_err().await? {
+            self.set_mode(Mode::Stdby).await?;
+            return Err(Rfm9xError::Crc)
         }
 
-        let rx_cur_addr: u8 = self.fifo_rx_current_addr().await.map_err(|e| RxError::Spi(e))?;
-        self.set_fifo_addr_ptr(rx_cur_addr).await.map_err(|e| RxError::Spi(e))?;
-        let len: u8 = self.fifo_rx_nb_bytes().await.map_err(|e| RxError::Spi(e))?;
-        self.read_contiguous_regs(RegFifo, data).await.map_err(|e| RxError::Spi(e))?;
-        self.set_mode(Mode::Stdby).await.map_err(|e| RxError::Spi(e))?;
+        let rx_cur_addr: u8 = self.fifo_rx_current_addr().await?;
+        self.set_fifo_addr_ptr(rx_cur_addr).await?;
+        let len: u8 = self.fifo_rx_nb_bytes().await?;
+        self.read_contiguous_regs(RegFifo, data).await?;
+        self.set_mode(Mode::Stdby).await?;
         Ok(len)
     }
     
