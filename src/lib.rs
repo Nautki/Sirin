@@ -1,11 +1,11 @@
 #![no_std]
 
 use core::{borrow::Borrow, future::Future, marker::PhantomData, ops::{Deref, DerefMut}};
-use embedded_hal_async::spi::{ErrorType, SpiBus};
+use embedded_hal_async::spi::{ErrorKind, ErrorType, SpiBus};
 
 pub trait SpiHandle<W: 'static + Copy = u8> {
     /// The type of the actual SPI bus we're using.
-    type Bus: SpiBus<W>;
+    type Bus: SpiBus<W, Error = ErrorKind>;
 
     /// The future resolves once the SPI device has been selected on the bus. 
     /// This method is infallible. It should not panic or fail. If the 
@@ -77,7 +77,7 @@ impl <H: SpiHandle<W> + ?Sized, W: 'static + Copy> DerefMut for SpiHandleBus<'_,
 }
 
 impl <H: SpiHandle<W> + ?Sized, W: 'static + Copy> ErrorType for SpiHandleBus<'_, H, W> {
-    type Error = <H::Bus as ErrorType>::Error;
+    type Error = ErrorKind;
 }
 
 impl <'h, H: SpiHandle<W>, W: 'static + Copy> SpiBus<W> for SpiHandleBus<'h, H, W> {
