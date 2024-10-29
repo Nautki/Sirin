@@ -1,10 +1,10 @@
 #![no_std]
 
-use core::error;
+use core::fmt::Debug;
 
 use dev_csr::dev_csr;
 use embassy_futures::yield_now;
-use embedded_hal::spi::ErrorType;
+use embedded_hal::spi::{ ErrorKind as SpiError, ErrorType};
 use embedded_hal_async::spi::SpiBus;
 use spi_handle::SpiHandle;
 
@@ -298,6 +298,10 @@ pub enum ErrorCodingRate {
     FourSevenths = 0b011,
     FourEighths = 0b100
 }
+
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SignalBandwidth {
     Cr7_8 = 0b0000,
     Cr10_4 = 0b0001,
@@ -310,6 +314,9 @@ pub enum SignalBandwidth {
     Cr250 = 0b1000,
     Cr500 = 0b1001
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Mode {
     Sleep = 0b000,
     Stdby = 0b001,
@@ -368,11 +375,7 @@ impl <S: SpiHandle> Rfm9xIo<S> {
         Ok(())
     }
 
-<<<<<<< HEAD
-    pub async fn recieve_single(&mut self, data: &mut [u8]) -> Result<u8, RxError<<S::Bus as ErrorType>::Error>> {
-=======
     pub async fn recieve(&mut self, data: &mut [u8]) -> Result<u8, Error> {
->>>>>>> 28ce53fa655587d940fdb1637084f0dcd651bd27
         
         self.set_mode(Mode::RxSingle).await?;
         
