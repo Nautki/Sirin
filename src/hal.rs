@@ -174,7 +174,7 @@ impl <S: SpiHandle> ReadBmp3 for Bmp3Io<S> {
 impl <S: SpiHandle> WriteBmp3 for Bmp3Io<S> {
     type Error = <S::Bus as ErrorType>::Error;
 
-    async fn write_contiguous_regs<const WORDS:usize>(
+    async fn write_contiguous_regs(
         &mut self,
         addr: impl WritableAddr,
         values: &[u8]
