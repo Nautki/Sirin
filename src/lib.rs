@@ -328,7 +328,7 @@ pub enum Mode {
     Cad = 0b111,
 }
 
-pub struct Rfm9xIo<S: SpiHandle> {
+pub struct Rfm9x<S: SpiHandle> {
     spi: S
 }
 
@@ -348,13 +348,18 @@ impl From<SpiError> for Rfm9xError {
 
 type Error = Rfm9xError;
 
-impl <S: SpiHandle> Rfm9xIo<S> {
-    async fn set_mode(&mut self, mode: Mode) -> Result<(), Error> {
+impl <S: SpiHandle> Rfm9x<S> {
+    pub fn new(spi: S) -> Self {
+        Self {
+            spi
+        }
+    }
+    pub async fn set_mode(&mut self, mode: Mode) -> Result<(), Error> {
         self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await?;
         Ok(())
     }
 
-    async fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
+    pub async fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
         let len: u8 = data.len().try_into().unwrap();
 
         self.set_mode(Mode::Stdby).await?;
@@ -367,6 +372,7 @@ impl <S: SpiHandle> Rfm9xIo<S> {
         self.set_payload_length(len).await?;
 
         self.set_mode(Mode::Tx).await?;
+
 
         while !self.tx_done().await? {
             yield_now().await;
@@ -399,7 +405,7 @@ impl <S: SpiHandle> Rfm9xIo<S> {
 }
 
 
-impl <S: SpiHandle> ReadRfm9x for Rfm9xIo<S> {
+impl <S: SpiHandle> ReadRfm9x for Rfm9x<S> {
     type Error = <S::Bus as ErrorType>::Error;
 
     async fn read_contiguous_regs(
@@ -419,7 +425,7 @@ impl <S: SpiHandle> ReadRfm9x for Rfm9xIo<S> {
     }
 }
 
-impl <S: SpiHandle> WriteRfm9x for Rfm9xIo<S> {
+impl <S: SpiHandle> WriteRfm9x for Rfm9x<S> {
     type Error = <S::Bus as ErrorType>::Error;
 
     async fn write_contiguous_regs(
