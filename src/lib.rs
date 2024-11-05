@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::fmt::Debug;
+use core::{fmt::Debug, mem};
 
 use dev_csr::dev_csr;
 use embassy_futures::yield_now;
@@ -288,6 +288,10 @@ dev_csr! {
             0x2C RSSI_WIDE_BAND r rssi_wide_band,
             /// See errata note
             0x2F IF_FREQ_2 rw if_freq_2,
+
+            /// Version code of the chip. Bits 7-4 give the full revision number;
+            /// bits 3-0 give the metal mask revision number.
+            0x42 VERSION r version
         }
     }
 }
@@ -317,6 +321,7 @@ pub enum SignalBandwidth {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u8)]
 pub enum Mode {
     Sleep = 0b000,
     Stdby = 0b001,
@@ -333,7 +338,6 @@ pub struct Rfm9x<S: SpiHandle> {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Rfm9xError {
     Spi(SpiError),
     Crc,
@@ -354,9 +358,22 @@ impl <S: SpiHandle> Rfm9x<S> {
             spi
         }
     }
+
+    pub async fn mode(&mut self) -> Result<Mode, Error> {
+        let mode: Mode = unsafe {
+            mem::transmute(self.read_reg(RegOpMode).await? & 0b0000_0111)
+        };
+
+        Ok(mode)
+    }
+
     pub async fn set_mode(&mut self, mode: Mode) -> Result<(), Error> {
         self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await?;
         Ok(())
+    }
+
+    pub async fn calibrate(&mut self) -> Result<(), Error> {
+
     }
 
     pub async fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
@@ -368,15 +385,16 @@ impl <S: SpiHandle> Rfm9x<S> {
         self.set_fifo_tx_base_addr(0x00).await?;
         self.set_fifo_addr_ptr(0x00).await?;
 
+        //self.write_contiguous_regs(RegFifo, &[0x80]).await?;
         self.write_contiguous_regs(RegFifo, data).await?;
+
         self.set_payload_length(len).await?;
 
         self.set_mode(Mode::Tx).await?;
 
-
-        while !self.tx_done().await? {
+        /*while !self.tx_done().await? {
             yield_now().await;
-        }
+        }*/
 
         Ok(())
     }
