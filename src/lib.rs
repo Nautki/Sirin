@@ -20,8 +20,23 @@ impl <S: SpiHandle> W25Q<S>{
         let mut spi = self.spi.select().await;
         spi.write(&[0x02]).await?;
         spi.write(&[((addr >> 16) & 0xFF) as u8, ((addr >> 8) & 0xFF) as u8, ((addr & 0xFF) as u8)]).await?;
-        spi.write(&[((addr >> 16) & 0xFF) as u8, ((addr >> 8) & 0xFF) as u8, ((addr & 0xFF) as u8)]).await?;
         spi.write(words).await?;
         Ok(())
-    }//
+    }
+
+    //clear page, read
+    pub async fn erase(&mut self, addr: u32) -> Result<(), ErrorKind>{
+        let mut spi = self.spi.select().await;
+        spi.write(&[0x20]).await?;
+        spi.write(&[((addr >> 16) & 0xFF) as u8, ((addr >> 8) & 0xFF) as u8, ((addr & 0xFF) as u8)]).await?;
+        Ok(())
+    }
+
+    pub async fn read_data(&mut self, addr: u32, words: &mut[u8]) -> Result<(), ErrorKind>{
+        let mut spi = self.spi.select().await;
+        spi.write(&[0x03]).await?;
+        spi.write(&[((addr >> 16) & 0xFF) as u8, ((addr >> 8) & 0xFF) as u8, ((addr & 0xFF) as u8)]).await?;
+        spi.read(words).await?;
+        Ok(())
+    }
 }
