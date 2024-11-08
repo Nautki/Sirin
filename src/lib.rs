@@ -368,12 +368,27 @@ impl <S: SpiHandle> Rfm9x<S> {
     }
 
     pub async fn set_mode(&mut self, mode: Mode) -> Result<(), Error> {
-        self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await?;
+        self.write_reg(RegOpMode, 0b1000_0000 | mode as u8).await?;
         Ok(())
     }
 
     pub async fn calibrate(&mut self) -> Result<(), Error> {
+        self.set_mode(Mode::Sleep).await?;
+        
+        
+        // sets frequency to 434 MHz
+        self.set_frf_23_16(0x6c).await?;
+        self.set_frf_15_8(0x80).await?;
+        self.set_frf_7_0(0x00).await?;
 
+        Ok(())
+    }
+
+    pub async fn set_frequency_bits(&mut self, freq_msb: u8, freq_mid: u8, freq_lsb: u8) -> Result<(), Error> {
+        self.set_frf_23_16(freq_msb).await?;
+        self.set_frf_15_8(freq_mid).await?;
+        self.set_frf_7_0(freq_lsb).await?;
+        Ok(())
     }
 
     pub async fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
@@ -385,10 +400,13 @@ impl <S: SpiHandle> Rfm9x<S> {
         self.set_fifo_tx_base_addr(0x00).await?;
         self.set_fifo_addr_ptr(0x00).await?;
 
+        self.set_payload_length(len).await?;
         //self.write_contiguous_regs(RegFifo, &[0x80]).await?;
         self.write_contiguous_regs(RegFifo, data).await?;
 
-        self.set_payload_length(len).await?;
+
+        self.set_fifo_tx_base_addr(0x00).await?;
+        self.set_fifo_tx_base_addr(0x00).await?;
 
         self.set_mode(Mode::Tx).await?;
 
