@@ -8,7 +8,12 @@ pub struct W25Q<S: SpiHandle>{
     spi: S
 }
 
+pub struct Log{
+    current_index : usize
+}
+
 impl <S: SpiHandle> W25Q<S>{
+
     //write enable
     pub async fn write_enable(&mut self) -> Result<(), ErrorKind> {
         let mut spi = self.spi.select().await;
@@ -95,9 +100,22 @@ impl <S: SpiHandle> W25Q<S>{
     pub fn read_manufacturer_id(&mut self) -> u16{
         0xEF
     }
+
+    //write to block with a block pointer(point to last erase / the current block writing to)
+    //wrap around when reaches the end.
+    pub async fn log(&mut self, arr: &mut[u8], words: &[u8] ,current_index : *mut u8) -> Result<(),ErrorKind>{
+        let mut spi = self.spi.select().await;
+        unsafe { current_index.add(words.len())};
+        let last_ptr = unsafe { arr.as_mut_ptr().add(arr.len()) };
+
+        if current_index > last_ptr{
+            current_index = arr.as_mut_ptr() //we set the current to the beginning = 0
+        }
+        self.sector_erase(*current_index); //sector_erase takes u32, do we erase 4 sets of the index??
+        Ok(())
+    }
+    
     
     }
-
-
 
     
