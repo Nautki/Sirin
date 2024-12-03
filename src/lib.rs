@@ -1,38 +1,18 @@
-use std::{future::IntoFuture, u32};
+#![no_std]
+
 use embedded_hal_async::spi::ErrorKind;
 use spi_handle::SpiHandle;
 use embedded_hal_async::spi::SpiBus;
 pub struct W25Q<S: SpiHandle>{
     spi: S
 }
-pub struct Logger {
-    current_addr: u32
-}
-impl Logger {
-    async fn log_partial_page(&mut self, flash: &mut W25Q<impl SpiHandle>, msg: &[u8]) -> Result<(), ErrorKind> {
-        if self.current_addr % 4096 == 0 {
-            flash.sector_erase(self.current_addr);
-        }
-        flash.page(self.current_addr, msg).await?;
-        self.current_addr += msg.len() as u32;
-        Ok(())
-    }
-    async fn log(&mut self, flash: &mut W25Q<impl SpiHandle>, msg: &[u8]) -> Result<(), ErrorKind> {
-        let start = self.current_addr as usize;
-        let end = self.current_addr as usize + msg.len();
-        let mut msg_i = 0;
-        let first_full_page = ((self.current_addr as usize / 256) + 1) * 256;
-        self.log_partial_page(flash, &msg[..(first_full_page - start)]).await?;
-        msg_i = first_full_page - start;
-        while ((self.current_addr as usize / 256) + 1) * 256 <= end {
-            self.log_partial_page(flash, &msg[msg_i..(msg_i + 256)]).await?;
-            msg_i += 256;
-        }
-        self.log_partial_page(flash, &msg[msg_i..]).await?;
-        Ok(())
-    }
-}
+
 impl <S: SpiHandle> W25Q<S>{
+    pub fn new(spi: S) -> Self {
+        Self {
+            spi
+        }
+    }
     //write enable
     pub async fn write_enable(&mut self) -> Result<(), ErrorKind> {
         let mut spi = self.spi.select().await;
@@ -109,3 +89,37 @@ impl <S: SpiHandle> W25Q<S>{
         0xEF
     }
 }   
+
+pub struct Logger {
+    current_addr: u32
+}
+
+impl Logger {
+    pub fn new() -> Self {
+        Logger {
+            current_addr: 0
+        }
+    }
+    pub async fn log_partial_page(&mut self, flash: &mut W25Q<impl SpiHandle>, msg: &[u8]) -> Result<(), ErrorKind> {
+        if self.current_addr % 4096 == 0 {
+            flash.sector_erase(self.current_addr).await?;
+        }
+        flash.page(self.current_addr, msg).await?;
+        self.current_addr += msg.len() as u32;
+        Ok(())
+    }
+    pub async fn log(&mut self, flash: &mut W25Q<impl SpiHandle>, msg: &[u8]) -> Result<(), ErrorKind> {
+        let start = self.current_addr as usize;
+        let end = self.current_addr as usize + msg.len();
+        let mut msg_i = 0;
+        let first_full_page = ((self.current_addr as usize / 256) + 1) * 256;
+        self.log_partial_page(flash, &msg[..(first_full_page - start)]).await?;
+        msg_i = first_full_page - start;
+        while ((self.current_addr as usize / 256) + 1) * 256 <= end {
+            self.log_partial_page(flash, &msg[msg_i..(msg_i + 256)]).await?;
+            msg_i += 256;
+        }
+        self.log_partial_page(flash, &msg[msg_i..]).await?;
+        Ok(())
+    }
+}
