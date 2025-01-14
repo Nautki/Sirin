@@ -288,32 +288,33 @@ dev_csr! {
                 1 gyro_da, //gyro data available
                 0 accel_da //accel data available
            },
-           0x20 OUT_TEMP_L r temp_data[8..15], //Temp data output register
-           0x21 OUT_TEMP_H r temp_data[0..7],
-           0x22 OUTX_L_G r gyro_pitch_rate[8..15], //Gyro pitch axis angular rate
-           0x23 OUTX_H_G r gyro_pitch_rate[0..7],
-           0x24 OUTY_L_G r gyro_roll_rate[8..15], //Gyro roll axis angular rate
-           0x25 OUTY_H_G r gyro_roll_rate[0..7],
-           0x26 OUTZ_L_G r gyro_yaw_rate[8..15], //Gyro yaw axis angular rate
-           0x27 OUTZ_H_G r gyro_yaw_rate[0..7],
-           0x28 OUTX_L_A r accel_x[8..15], //Accel x output
-           0x29 OUTX_H_A r accel_x[0..7],
-           0x2A OUTY_L_A r accel_y[8..15], //Accel y output
-           0x2B OUTY_H_A r accel_y[0..7],
-           0x2C OUTZ_L_A r accel_z[8..15], //Accel z output
-           0x2D OUTZ_H_A r accel_z[0..7],
-           0x2E UI_OUTX_L_G_OIS_EIS r x_ois_eis[8..15], //x axis OIS/EIS
-           0x2F UI_OUTX_H_G_OIS_EIS r x_ois_eis[0..7],
-           0x30 UI_OUTY_L_G_OIS_EIS r y_ois_eis[8..15], //y axis OIS/EIS
-           0x31 UI_OUTY_H_G_OIS_EIS r y_ois_eis[0..7],
-           0x32 UI_OUTZ_L_G_OIS_EIS r z_ois_eis[8..15], //z axis OIS/EIS
-           0x33 UI_OUTZ_H_G_OIS_EIS r z_ois_eis[0..7],
-           0x34 UI_OUTX_L_A_OIS_DualC r x_ois_dc[8..15], //x axis OIS/DualC
-           0x35 UI_OUTX_H_A_OIS_DualC r x_ois_dc[0..7],
-           0x36 UI_OUTY_L_A_OIS_DualC r y_ois_dc[8..15], //y axis OIS/DualC
-           0x37 UI_OUTY_H_A_OIS_DualC r y_ois_dc[0..7],
-           0x38 UI_OUTZ_L_A_OIS_DualC r z_ois_dc[8..15], //z axis OIS/DualC
-           0x39 UI_OUTZ_H_A_OIS_DualC r z_ois_dc[0..7],
+           ///Temp data output register
+           0x20 OUT_TEMP_L r temp_data[0..7], 
+           0x21 OUT_TEMP_H r temp_data[8..15],
+           0x22 OUTX_L_G r gyro_pitch_rate[0..7], //Gyro pitch axis angular rate
+           0x23 OUTX_H_G r gyro_pitch_rate[8..15],
+           0x24 OUTY_L_G r gyro_roll_rate[0..7], //Gyro roll axis angular rate
+           0x25 OUTY_H_G r gyro_roll_rate[8..15],
+           0x26 OUTZ_L_G r gyro_yaw_rate[0..7], //Gyro yaw axis angular rate
+           0x27 OUTZ_H_G r gyro_yaw_rate[8..15],
+           0x28 OUTX_L_A r accel_x[0..7], //Accel x output
+           0x29 OUTX_H_A r accel_x[8..15],
+           0x2A OUTY_L_A r accel_y[0..7], //Accel y output
+           0x2B OUTY_H_A r accel_y[8..15],
+           0x2C OUTZ_L_A r accel_z[0..7], //Accel z output
+           0x2D OUTZ_H_A r accel_z[8..15],
+           0x2E UI_OUTX_L_G_OIS_EIS r x_ois_eis[0..7], //x axis OIS/EIS
+           0x2F UI_OUTX_H_G_OIS_EIS r x_ois_eis[8..15],
+           0x30 UI_OUTY_L_G_OIS_EIS r y_ois_eis[0..7], //y axis OIS/EIS
+           0x31 UI_OUTY_H_G_OIS_EIS r y_ois_eis[8..15],
+           0x32 UI_OUTZ_L_G_OIS_EIS r z_ois_eis[0..7], //z axis OIS/EIS
+           0x33 UI_OUTZ_H_G_OIS_EIS r z_ois_eis[8..15],
+           0x34 UI_OUTX_L_A_OIS_DualC r x_ois_dc[0..7], //x axis OIS/DualC
+           0x35 UI_OUTX_H_A_OIS_DualC r x_ois_dc[8..15],
+           0x36 UI_OUTY_L_A_OIS_DualC r y_ois_dc[0..7], //y axis OIS/DualC
+           0x37 UI_OUTY_H_A_OIS_DualC r y_ois_dc[8..15],
+           0x38 UI_OUTZ_L_A_OIS_DualC r z_ois_dc[0..7], //z axis OIS/DualC
+           0x39 UI_OUTZ_H_A_OIS_DualC r z_ois_dc[8..15],
            0x40 TIMESTAMP0 r timestamp[0..7], //Timestamp output. 1LSB = 21.75u
            0x41 TIMESTAMP1 r timestamp[8..15],
            0x42 TIMESTAMP2 r timestamp[16..23],
@@ -855,11 +856,11 @@ dev_csr! {
 }
 
 
-pub struct Lsm6dsv<S: SpiHandle> {
+pub struct Lsm6dso<S: SpiHandle> {
     spi: S
 }
 
-impl <S: SpiHandle> Lsm6dsv<S> {
+impl <S: SpiHandle> Lsm6dso<S> {
     type Error = <S::Bus as ErrorType>::Error;
     pub fn new(spi: S) -> Self {
         Self {
@@ -872,6 +873,7 @@ impl <S: SpiHandle> Lsm6dsv<S> {
         Ok(()) //TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
                //configuring SPI bus, setting verbosity/accuracy mode.
                //KNOWN NEED TO SET: 
+
     }
 
     
@@ -879,7 +881,7 @@ impl <S: SpiHandle> Lsm6dsv<S> {
 }
 
 
-impl <S: SpiHandle> ReadLsm6dsv for Lsm6dsv<S> {
+impl <S: SpiHandle> ReadLsm6dso for Lsm6dso<S> {
     type Error = <S::Bus as ErrorType>::Error;
 
     async fn read_contiguous_regs(
@@ -899,7 +901,7 @@ impl <S: SpiHandle> ReadLsm6dsv for Lsm6dsv<S> {
     }
 }
 
-impl <S: SpiHandle> WriteLsm6dsv for Lsm6dsv<S> {
+impl <S: SpiHandle> WriteLsm6dso for Lsm6dso<S> {
     type Error = <S::Bus as ErrorType>::Error;
 
     async fn write_contiguous_regs(
