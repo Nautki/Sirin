@@ -651,95 +651,31 @@ dev_csr! {
                     //Enables routing the alert for timestamp overflow within 5.6 ms
                     //to the INT2 pin.
            },
-           0x62 HAODR_CFG rw
+           0x62 I3C_BUS_AVB rw
            {
-                1..0 haodr_sel //
-                    //Selects the ODR set supported when high-accuracy ODR (HAODR)
-                    //mode is enabled (see Table 19. Accelerometer and gyroscope ODR
-                    //selection in high-accuracy ODR mode). Defauly: 00
+                4..3 i3c_bus_avb_sel,
+                    //These bits are used to select the bus available time when MIPI I3CSM IBI is used.
+                    //Default value: 00
+                    //(00: bus available time equal to 50 µsec (default);
+                    //01: bus available time equal to 2 µsec;
+                    //10: bus available time equal to 1 msec;
+                    //11: bus available time equal to 25 msec
+                0 pd_dis_int1
+                    //This bit allows disabling the INT1 pull-down.
+                    //PD_DIS_INT1
+                    //INT1
+                    //(0: Pull-down on INT1 enabled (pull-down is effectively connected only when no interrupts are routed 
+                    //to the INT1 pin or when the MIPI I3CSM dynamic address is assigned);
+                    //1: Pull-down on INT1 disabled (pull-down not connected)
            },
-           0x63 EMB_FUNC_CFG rw
+           0x63 INTERNAL_FREQ_FINE rw
            {
-                7 accel_dualc_batch_from_if, //
-                    //When dual-channel mode is enabled, this bit enables batching
-                    //the accelerometer channel 2 in FIFO. Default value: 0
-                5 emb_func_irq_mask_g_settl, //
-                    //Enables / masks execution trigger of the embedded functions when
-                    //gyroscope data are settling. Default value: 0
-                    //(0: disabled;
-                    //1: masks execution trigger of the embedded functions until
-                    //gyroscope filter settling ends)
-                4 emb_func_irq_mask_accel_settl, //
-                    //Enables / masks execution trigger of the embedded functions
-                    //when accelerometer data are settling. Default value: 0
-                    //(0: disabled;
-                    //1: masks execution trigger of the embedded functions until
-                    //accelerometer filter settling ends)
-                3 emb_func_disable //
-                    //Disables execution of the embedded functions. Default value: 0
-                    //(0: disabled;
-                    //1: embedded functions execution trigger is not generated anymore
-                    //and all initialization procedures are forced when this bit is
-                    //set back to 0).
+                7..0 freq_fine
+                //Difference in percentage of the effective ODR (and timestamp rate) with respect to the typical. Step: 0.15%. 
+                //8-bit format, two's complement.
            },
-           0x64 UI_HANDSHAKE_CTRL rw
-           {
-                1 ui_shared_ack, //
-                    //Primary interface side. This bit acknowledges the handshake.
-                    //If the secondary interface is not accessing the shared
-                    //registers, this bit is set to 1 by the device and the R/W
-                    //operation on the UI_SPI2_SHARED_0 (65h) through
-                    //UI_SPI2_SHARED_5 (6Ah) registers is allowed on the primary
-                    //interface.
-                0 ui_shared_req //
-                    //This bit is used by the primary interface master to request
-                    //access to the UI_SPI2_SHARED_0 (65h) through UI_SPI2_SHARED_5
-                    //(6Ah) registers. When the R/W operation is finished, the master
-                    //must reset this bit.
-           },
-           0x65 UI_SPI2_SHARED_0 rw ui_spi2_shared_0, //UI/SPI2 shared registers
-           0x66 UI_SPI2_SHARED_1 rw ui_spi2_shared_1,
-           0x67 UI_SPI2_SHARED_2 rw ui_spi2_shared_2,
-           0x68 UI_SPI2_SHARED_3 rw ui_spi2_shared_3,
-           0x69 UI_SPI2_SHARED_4 rw ui_spi2_shared_4,
-           0x6A UI_SPI2_SHARED_5 rw ui_spi2_shared_5,
-                //Volatile byte is used as a contact point between the primary and
-                //secondary interface host. These shared registers are accessible only
-                //by one interface at a time and access is managed through the
-                //UI_SHARED_ACK and UI_SHARED_REQ bits of register UI_HANDSHAKE_CTRL
-                //(64h) and the SPI2_SHARED_ACK and SPI2_SHARED_REQ bits of register
-                //SPI2_HANDSHAKE_CTRL (6Eh).
-           0x6B CTRL_EIS rw
-           {
-                7..6 odr_gyro_eis, //
-                    //Enables and selects the ODR of the gyroscope EIS channel.
-                    //(00: EIS channel is off (default);
-                    //01: 1.92 kHz;
-                    //10: 960 Hz;
-                    //11: reserved)
-                4 lpg_gyro_eis_bw, //
-                    //Gyroscope digital LPF_EIS filter bandwidth selection.
-                    //Refer to Table 191 (datasheet).
-                3 gyro_eis_on_gyro_ois_out, //
-                    //Enables routing gyroscope EIS output to OIS from UI output
-                    //addresses (2Eh – 33h). When this bit is set to 1, the
-                    //gyroscope OIS data cannot be read from primary interface.
-                    //Default value: 0
-                2..0 fs_gyro_eis //
-                    //Gyroscope full-scale selection for EIS channel. If the
-                    //FS_G_[3:0] bits in CTRL6 (15h) are equal to 1100 (±4000 dps)
-                    //FS_G_EIS_[2:0] must be set to "100" in order to have
-                    //±4000 dpsfull scale on both UI and EIS channels. If the
-                    //FS_G_3 bit in register CTRL6 (15h) is equal to 0, the EIS
-                    //channel full scale can be selected as follows:
-                    //(000: ±125 dps (default);
-                    //001: ±250 dps;
-                    //010: ±500 dps;
-                    //011: ±1000 dps;
-                    //100: ±2000 dps;
-                    //others: reserved)
-           },
-           0x6F UI_INT_OIS rw
+           
+           0x6F INT_OIS rw
                //OIS interrupt configuration register
                //The primary interface can write to this register when the
                //OIS_CTRL_FROM_UI bit in the FUNC_CFG_ACCESS (01h) register is equal
@@ -750,79 +686,120 @@ dev_csr! {
                 7 int2_drdy_ois, //
                     //Enables OIS chain DRDY on INT2 pin from the UI interface.
                     //This setting has priority over all other INT2 settings.
-                6 drdy_mask_ois, //
-                    //Enables / masks OIS data available. Default value: 0
-                    //(0: disabled;
-                    //1: masks OIS DRDY signals (both accelerometer and gyroscope)
-                    //until filter settling ends (accelerometer and gyroscope
-                    //independently masked))
-                4 st_ois_clampdis //
-                    //Disables OIS chain clamp during self-test. Default value: 0
-                    //(0: All OIS chain outputs = 8000h during self-test;
-                    //1: OIS chain self-test outputs)
+                6 lvl2_ois, 
+                    //Enables level-sensitive latched mode on the OIS chain. Default value: 0
+                5 den_lh_ois,
+                    //Indicates polarity of DEN signal on OIS chain
+                    //  (0: DEN pin is active-low;
+                    //  1: DEN pin is active-high)
+                1..0 st_accel_ois
+                    // Selects accelerometer self-test – active only if the accelerometer OIS chain is enabled. Default value: 00
+                    // (00: normal mode;
+                    // 01: positive sign self-test;
+                    // 10: negative sign self-test;
+                    // 11: not allowed
            },
-           0x70 UI_CTRL1_OIS r
-               //OIS configuration register
-               //The primary interface can write this register when the
-               //OIS_CTRL_FROM_UI bit in the FUNC_CFG_ACCESS (01h) register is equal
-               //to 1 (primary IF full-control mode); this register is read-only
-               //when the OIS_CTRL_FROM_UI bit is equal to 0 (SPI2 full-control mode)
-               //and shows the content of the SPI2_CTRL1_OIS (70h) register.
-           {
-                5 sim_ois, //SPI2 3- or 4-wire interface. Default value: 0
-                2 ois_accel_en, //Enables accelerometer OIS chain. Default value: 0
-                1 ois_gyro_en, //Enables gyroscope OIS chain. Default value: 0
-                0 spi2_read_en //In primary IF full-control mode, enables auxiliary
-                    //SPI for reading OIS data in registers SPI2_OUTX_L_G_OIS (22h)
-                    //and SPI2_OUTX_H_G_OIS (23h) through Section 11.9
-                    //SPI2_OUTZ_L_A_OIS (2Ch) and SPI2_OUTZ_H_A_OIS (2Dh).
-                    //Default value: 0
+           0x70 CTRL1_OIS rw
+            {   
+                6 lvl1_ois,
+                    //Enables OIS data level-sensitive trigger
+                5 sim_ois,
+                    //SPI2 3- or 4-wire interface. Default value: 0
+                    //(0: 4-wire SPI2;
+                    //1: 3-wire SPI2
+                4 mode4_en,
+                    // Enables accelerometer OIS chain. OIS outputs are available through SPI2 in registers 28h-2Dh.
+                    // Note: OIS_EN_SPI2 must be enabled (that is, set to 1) to enable also the accelerometer OIS chain.
+                3..2 fs_g_ois,
+                    //Selects gyroscope OIS chain full-scale
+                    // (00: ±250 dps;
+                    // 01: ±500 dps;
+                    // 10: ±1000 dps;
+                    // 11: ±2000 dps)
+                1 fs_125_ois,
+                    //Selects gyroscope OIS chain full-scale ±125 dps
+                    //(0: FS selected through bits FS[1:0]_OIS_G;
+                    //1: ±125 dps)
+                0 ois_en_spi2
+                    // Enables OIS chain data processing for gyroscope in mode 3 and mode 4 (Mode4_EN = 1) and 
+                    // accelerometer data in mode 4 (Mode4_EN = 1).
+                    //  When the OIS chain is enabled, the OIS outputs are available through the SPI2 in registers OUTX_L_G 
+                    // (22h) and OUTX_H_G (23h) through OUTZ_L_A (2Ch) and OUTZ_H_A (2Dh) and STATUS_REG (1Eh) / 
+                    // STATUS_SPIAux (1Eh), and LPF1 is dedicated to this chain.  
            },
-           0x71 UI_CTRL2_OIS r //read-only in SPI2 mode b/c redundant, but I'm not
-               //sure which mode we're running this in.
+           0x71 CTRL2_OIS r
            {
-                4..3 lpf1_gyro_ois_bw, //Gyroscope OIS bandwidth selection.
-                    //Value     Cutoff(Hz)      Phase @20Hz(�)
-                    //00        293             -7.1
-                    //01        217             -9.1
-                    //10        158             -11.9
-                    //11        476             -5.1
-                2..0 fs_gyro_ois //Gyro OIS full-scale selection.
-                    //000: ±125 dps
-                    //001: ±250 dps
-                    //010: ±500 dps
-                    //011: ±1000 dps
-                    //100: ±2000 dps
-                    //Others reserved
+            5..4 hpm_ois,
+                //Selects gyroscope OIS chain digital high-pass filter cutoff. Default value: 00
+                //  (00: 16 mHz;
+                //  HPM[1:0]_OIS
+                //  01: 65 mHz;
+                //  10: 260 mHz;
+                //  11: 1.04 Hz) 
+            2..1 ftype_ois,
+                //Selects gyroscope digital LPF1 filter bandwidth. Table 151 shows cutoff and phase values obtained with all 
+                //configurations.
+            0 hp_en_ois
+                // Enables gyroscope OIS chain digital high-pass filter
+                // Gyroscope OIS chain digital LPF1 filter bandwidth selection
+                // FTYPE_[1:0]_OIS
+                // 00
+                // 01
+                // 10
+                // 11
+                // Cutoff [Hz]  Phase @ 20 Hz [°]
+                // 335.5        -6.69
+                // 232.0        -8.78
+                // 171.1        -11.18
+                // 609.0        -4.91
            },
-           0x72 UI_CTRL3_OIS r
+           0x72 CTRL3_OIS r
            {
-                5..3 lpf_accel_ois_bw, //Selects accel OIS channel bandwidth,
-                    //Default value 0.
-                    //Value     Typ. Overall BW (Hz)    Typ. Overall Phase @20Hz(�)
-                    //000       749                     -3.41    
-                    //001       539                     -4.04
-                    //010       342                     -5.31
-                    //011       162                     -9.08
-                    //100       78.5                    -16.4
-                    //101       38.6                    -29.6
-                    //110       19.3                    -28.8
-                    //111       9.8                     -29.1
-                    //Default 0.
-                1..0 fs_accel_ois //Selects accel OIS channel full-scale.
-                    //00: ±2 g default)
-                    //01: ±4g
-                    //10: ±8 
-                    //11: ±16 
+                7..6 fs_xl_ois,
+                    //Accelerometer OIS channel full-scale selection
+                    // FS[1:0]_XL_OIS   XL_FS_MODE = 0                                              XL_FS_MODE = 1
+                    //                  XL UI ON                                   XL UI PD         -
+                    // 00 (default)     Full-scale selected from user interface    ±2 g             ±2 g
+                    // 01                                                          ±16 g            ±2 g
+                    // 10                                                          ±4 g             ±4 g
+                    // 11                                                          ±8 g             ±8 g
+                5..3 filter_xl_conf_ois,
+                    //Accelerometer OIS channel bandwidth and phase
+                    // FILTER_XL_CONF_OIS[2:0] Typ. overall bandwidth [Hz]  Typ. overall phase [°]
+                    // 000                     289                          -5.72 @ 20 Hz
+                    // 001                     258                          -6.80 @ 20 Hz
+                    // 010                     120                          -13.2 @ 20 Hz
+                    // 011                     65.1                         -21.5 @ 20 Hz
+                    // 100                     33.2                         -19.1 @ 10 Hz
+                    // 101                     16.6                         -33.5 @ 10 Hz
+                    // 110                     8.30                         -26.7 @ 4 Hz
+                    // 111                     4.14                         -26.2 @ 2 Hz
+                2..1 st1_ois,
+                    // Selects gyroscope OIS chain self-test. Default value: 00
+                    // Table 156 lists the output variation when the self-test is enabled and ST_OIS_CLAMPDIS = 1.
+                    // (00: Normal mode;
+                    // 01: Positive sign self-test;
+                    // 10: Normal mode;
+                    // 11: Negative sign self-test)
+                0 st_ois_clampdis
+                    // Disables OIS chain clamp
+                    //  (0: All OIS chain outputs = 8000h during self-test;
+                    //  1: OIS chain self-test outputs as shown in Table 156.
+                    //  Table 156. Self-test nominal output variation
+                    //  Full scale       Output variation [dps]
+                    //  ±2000            ±400
+                    //  ±1000            ±200
+                    //  ±500             ±100
+                    //  ±250             ±50
+                    //  ±125             ±25
            },
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
            0x75 Z_OFS_USR rw usr_offset_z,
-           0x78 FIFO_DATA_OUT_TAG r
+           0x78 FIFO_DATA_O UT_TAG r
            {
                 7..3 tag_sensor, //FIFO tag. Identifies sensor used for FIFO data.
                     //Value     Sensor
-                    //0x00      FIFO empty
                     //0x01      Gyroscope NC
                     //0x02      Accelerometer NC
                     //0x03      Temperature
@@ -841,16 +818,24 @@ dev_csr! {
                     //0x10      Sensor hub slave 2
                     //0x11      Sensor hub slave 3
                     //0x12      Step counter
-                    //0x13      SFLP game rotation vector
-                    //0x16      SFLP gyroscope bias
-                    //0x17      SFLP gravity vector
                     //0x19      Sensor hub nack
-                    //0x1D      Accelerometer dualC
-                    //0x1E      Enhanced EIS gyroscope
-                    //Others reserved
-                2..1 tag_counter //2-bit counter which identifies sensor time slot
+                2..1 tag_counter, 
+                    //2-bit counter which identifies sensor time slot
+                0 tag_parity 
+                    //Parity check of TAG content
            },
-
+           0x79 FIFO_DATA_OUT_X_L r,
+                    //x axis ouptut
+           0x7A FIFO_DATA_OUT_X_H r,
+                    //x axis ouptut
+           0x7B FIFO_DATA_OUT_Y_L r,
+                    //y axis output
+           0x7C FIFO_DATA_OUT_Y_H r,
+                    //y axis output
+           0x7D FIFO_DATA_OUT_Z_L r,
+                    //z axis output
+           0x7E FIFO_DATA_OUT_Z_H r
+                    //z axis output
         }
     }
 }
