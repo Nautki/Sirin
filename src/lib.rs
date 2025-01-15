@@ -861,6 +861,7 @@ pub struct Lsm6dso<S: SpiHandle> {
 }
 
 impl <S: SpiHandle> Lsm6dso<S> {
+    /*
     type Error = <S::Bus as ErrorType>::Error;
     pub fn new(spi: S) -> Self {
         Self {
@@ -874,9 +875,39 @@ impl <S: SpiHandle> Lsm6dso<S> {
                //configuring SPI bus, setting verbosity/accuracy mode.
                //KNOWN NEED TO SET: 
 
+    }*/
+    
+    pub fn new(spi: S) -> Self {
+        Self {
+            spi
+        }
     }
 
-    
+    pub async fn read(&mut self) -> Result<u16, <S::Bus as ErrorType>::Error> {
+        let accelx: u16 = self.accel_x().await?;
+        Ok(accelx)
+    }
+
+    pub async fn raw_accel(&mut self) -> Result<(i16, i16, i16), <S::Bus as ErrorType>::Error> {
+        Ok(unsafe {
+            let accel_x: i16 = mem::transmute(self.accel_x().await?);
+            let accel_y: i16 = mem::transmute(self.accel_y().await?);
+            let accel_z: i16 = mem::transmute(self.accel_z().await?);
+
+            (accel_x, accel_y, accel_z)
+        })
+    }
+
+    pub async fn accel(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
+        let (raw_x, raw_y, raw_z) = self.raw_accel().await?;
+        let fs = 32; //sensitivity mode TODO: read from chip
+        let scalar: i32 = 122 * fs/4;
+        let accel_x: i32 = scalar * (raw_x as i32);
+        let accel_y: i32 = scalar * (raw_y as i32);
+        let accel_z: i32 = scalar * (raw_z as i32);
+
+        Ok((accel_x, accel_y, accel_z))
+    }
     
 }
 
