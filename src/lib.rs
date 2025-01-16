@@ -59,7 +59,7 @@ dev_csr! {
            {
                 7    pulsed_drdy, //Enables pulsed data-ready mode.
                     //0: data-ready latched mode (returns to 0 only after an interface reading) (default)
-                    //1: data-ready pulsed mode (the data ready pulses are 75 �s long)
+                    //1: data-ready pulsed mode (the data ready pulses are 75 �s long)
                 6..5 trig_ctr_bdr, //Select the trigger for the internal counter of batch events for the accel, gyro, and EIS gyro.
                     //00: accel batch event.
                     //01: gyro batch event.
@@ -79,7 +79,7 @@ dev_csr! {
                 5 int1_fifo_full, //Enables FIFO full flag interrupt on INT1 pin.
                 4 int1_fifo_over, //Enables FIFO overrun interrupt on INT1 pin.
                 3 int1_fifo_thresh, //Enables FIFO threshold interrupt on INT1 pin.
-                2 int1_boot //Enables boot status on the INT1 pin
+                2 int1_boot, //Enables boot status on the INT1 pin
                 1 int1_gyro_rdy, //Enables gyro data-ready interrupt on INT1 pin.
                 0 int1_accel_rdy //Enables accel data-ready interrupt on INT1 pin.
            },
@@ -135,7 +135,7 @@ dev_csr! {
                         //11: ±8
                     //When XL_FS_MODE=1 in CTRL8_XL
                         //00: ±2g default)
-                        //01: �2g
+                        //01: �2g
                         //10: ±4
                         //11: ±8
                 1 accel_lpf2, //Accelerometer high-resolution selection
@@ -329,7 +329,7 @@ dev_csr! {
                 2 wake_x, //Wake-up event detection status on X-axis. Default value: 0
                 1 wake_y, //Wake-up event detection status on Y-axis. Default value: 0
                 0 wake_z, //Wake-up event detection status on Z-axis. Default value: 0
-           }
+           },
            0x1C TAP_SRC r
            {
                 6 tap_ia, //Tap event detection status. Default: 0
@@ -862,7 +862,7 @@ dev_csr! {
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
            0x75 Z_OFS_USR rw usr_offset_z,
-           0x78 FIFO_DATA_O UT_TAG r
+           0x78 FIFO_DATA_O r UT_TAG
            {
                 7..3 tag_sensor, //FIFO tag. Identifies sensor used for FIFO data.
                     //Value     Sensor
