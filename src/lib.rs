@@ -675,7 +675,7 @@ dev_csr! {
                 //8-bit format, two's complement.
            },
            
-           0x6F INT_OIS rw
+           /*0x6F INT_OIS rw
                //OIS interrupt configuration register
                //The primary interface can write to this register when the
                //OIS_CTRL_FROM_UI bit in the FUNC_CFG_ACCESS (01h) register is equal
@@ -698,7 +698,7 @@ dev_csr! {
                     // 01: positive sign self-test;
                     // 10: negative sign self-test;
                     // 11: not allowed
-           },
+           },*/
            0x70 CTRL1_OIS rw
             {   
                 6 lvl1_ois,
@@ -796,7 +796,7 @@ dev_csr! {
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
            0x75 Z_OFS_USR rw usr_offset_z,
-           0x78 FIFO_DATA_O UT_TAG r
+           0x78 FIFO_DATA_OUT_TAG r
            {
                 7..3 tag_sensor, //FIFO tag. Identifies sensor used for FIFO data.
                     //Value     Sensor
