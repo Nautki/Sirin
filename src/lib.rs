@@ -518,204 +518,177 @@ dev_csr! {
            },
            0x56 TAP_CFG0 rw
            {
-                6 low_pass_on_6d,
-                    //LPF2 filter on 6D function selection. Refer to Figure 30.
-                    //Default value: 0
-                    //0: ODR/2 low-pass filtered data sent to 6D interrupt function;
-                    //1: LPF2 output data sent to 6D interrupt function
-                5 hw_func_mask_accel_settle,
-                    //Enables masking the execution trigger of the basic interrupt
-                    //functions (6D/4D, free-fall, wake-up, tap, activity/inactivity)
-                    //when accelerometer data are settling. Default value: 0
-                    //Note: Refer to the product application note for the details
-                    //regarding operating/power mode configurations, settings,
-                    //turn-on/off time and on-the-fly changes.
-                4 slope_fds,
-                    //HPF or slope filter selection on wake-up and activity/inactivit
-                    //functions. Refer to Figure 30 (datasheet).
-                3 tap_x_en, //enable x tap recognition
-                2 tap_y_en, //enable y tap recognition
-                1 tap_z_en, //enable z tap recognition
-                0 lir //Latched interrupt
+                6 int_clr_on_read, //This bit allows immediately clearing the latched interrupts of an event detection
+                //upon the read of the corresponding status register. It must be set to 1 together
+                //with LIR. Default value: 0
+                //(0: latched interrupt signal cleared at the end of the ODR period;
+                //1: latched interrupt signal immediately cleared)
+                5 sleep_status_on_int, //Activity/inactivity interrupt mode configuration.
+                //If INT1_SLEEP_CHANGE or INT2_SLEEP_CHANGE bits are enabled, drives
+                //the sleep status or sleep change on the INT pins. Default value: 0
+                //(0: sleep change notification on INT pins; 1: sleep status reported on INT pins)
+                4 slope_fds, //HPF or SLOPE filter selection on wake-up and Activity/Inactivity functions.
+                //Default value: 0 (0: SLOPE filter applied; 1: HPF applied)
+                3 tap_x_en, //Enable X direction in tap recognition. Default value: 0
+                //(0: X direction disabled; 1: X direction enabled)
+                2 tap_y_en, //Enable Y direction in tap recognition. Default value: 0
+                //(0: Y direction disabled; 1: Y direction enabled)
+                1 tap_z_en, //Enable Z direction in tap recognition. Default value: 0
+                //(0: Z direction disabled; 1: Z direction enabled)
+                0 lir //Latched Interrupt. Default value: 0
+                //(0: interrupt request not latched; 1: interrupt request latched)
            },
            0x57 TAP_CFG1 rw
            {
-                7..5 tap_priority, //Selection of axis priority for tap detection
-                    //input     max     mid     min
-                    //000       x       y       z
-                    //001       y       x       z
-                    //010       x       z       y
-                    //011       z       y       x
-                    //100       x       y       z
-                    //101       y       z       x
-                    //110       z       x       y
-                    //111       z       y       x
+                7..5 tap_priority, //Selection of axis priority for TAP detection (see Table 119)
+                //TAP_PRIORITY_[2:0] | Max. priority | Mid. priority | Min. priority
+                //000 | X | Y | Z
+                //001 | Y | X | Z
+                //010 | X | Z | Y
+                //011 | Z | Y | X
+                //100 | X | Y | Z
+                //101 | Y | Z | X
+                //110 | Z | X | Y
+                //111 | Z | Y | X
                 4..0 tap_ths_x //X-axis tap recognition threshold. Default value: 0
-                    //1 LSB = FS_XL / (2^5)
+                //1 LSB = FS_XL / (2^5)
            },
-           0x58 TAP_CFG2 rw
+           0x58 TAP_CFG2 rw 
            {
-                4..0 tap_ths_y //like tap_ths_x but y
+                7 interrupts_enable, //Enable basic interrupts (6D/4D, free-fall, wake-up, tap, inactivity). Default value: 0
+                //(0: interrupt disabled; 1: interrupt enabled)
+                6..5 inact_en, //Enable activity/inactivity (sleep) function. Default value: 00
+                //(00: stationary/motion-only interrupts generated, XL and gyro do not change;
+                //01: sets accelerometer ODR to 12.5 Hz (low-power mode), gyro does not change;
+                //10: sets accelerometer ODR to 12.5 Hz (low-power mode), gyro to sleep mode;
+                //11: sets accelerometer ODR to 12.5 Hz (low-power mode), gyro to power-down mode)
+                4..0 tap_ths_y //Y-axis tap recognition threshold. Default value: 0
+                //1 LSB = FS_XL / (2^5)
            },
-           0x59 TAP_THS_6D rw
+           0x59 TAP_THS_6D rw 
            {
-                7 d4d_en, //Enables 4D orientation detection.
-                    //Z-axis position detection is disabled. Default value: 0
+                7 d4d_en, //4D orientation detection enable. Z-axis position detection is disabled.
+                //Default value: 0
+                //(0: disabled; 1: enabled)
                 6..5 sixd_ths, //Threshold for 4D/6D function. Default value: 00
-                    //00: 80�
-                    //01: 70�
-                    //10: 60�
-                    //11: 50�
-                4..0 tap_ths_z //like tap_ths_x but z
+                //SIXD_THS | Threshold value
+                //00 | 68 degrees
+                //01 | 47 degrees
+                //10 | Reserved
+                //11 | Reserved
+                4..0 tap_ths_z //Z-axis recognition threshold. Default value: 0
+                //1 LSB = FS_XL / (2^5)
            },
-           0x5A TAP_DUR rw
+           0x5A INT_DUR2 rw 
            {
-                7..4 tap_dur, //
-                    //Duration of maximum time gap for double-tap recognition.
-                    //Default: 0000
-                    //When double-tap recognition is enabled, this register expresses
-                    //the maximum time between two consecutive detected taps to
-                    //determine a double-tap event. The default value of these bits is
-                    //0000b which corresponds to 16/ODR_XL time. If the DUR_[3:0] bits
-                    //are set to a different value, 1LSB corresponds to 32/ODR_XL
-                    //time.
-                3..2 tap_quiet, //
-                    //Expected quiet time after a tap detection. Default value: 00
-                    //Quiet time is the time after the first detected tap in which
-                    //there must not be any overthreshold event. The default value of
-                    //these bits is 00b which corresponds to 2/ODR_XL time. If the
-                    //QUIET_[1:0] bits are set to a different value, 1LSB corresponds
-                    //to 4/ODR_XL time.
-                1..0 tap_shock //
-                    //Maximum duration of overthreshold event. Default value: 00
-                    //Maximum duration is the maximum time of an overthreshold
-                    //signal detection to be recognized as a tap event. The default
-                    //value of these bits is 00b which corresponds to 4/ODR_XL time.
-                    //If the SHOCK_[1:0] bits are set to a different value, 1LSB
-                    //corresponds to 8/ODR_XL time.
+                7..4 dur, //Duration of maximum time gap for double tap recognition. Default: 0000
+                //When double tap recognition is enabled, this register expresses the maximum time
+                //between two consecutive detected taps to determine a double tap event. The default
+                //value of these bits is 0000b which corresponds to 16*ODR_XL time. If the DUR[3:0]
+                //bits are set to a different value, 1LSB corresponds to 32*ODR_XL time.
+                3..2 quiet, //Expected quiet time after a tap detection. Default value: 00
+                //Quiet time is the time after the first detected tap in which there must not be any
+                //overthreshold event. The default value of these bits is 00b which corresponds to
+                //2*ODR_XL time. If the QUIET[1:0] bits are set to a different value, 1LSB corresponds
+                //to 4*ODR_XL time.
+                1..0 shock //Maximum duration of overthreshold event. Default value: 00
+                //Maximum duration is the maximum time of an overthreshold signal detection to be
+                //recognized as a tap event. The default value of these bits is 00b which corresponds
+                //to 4*ODR_XL time. If the SHOCK[1:0] bits are set to a different value, 1LSB
+                //corresponds to 8*ODR_XL time.
            },
            0x5B WAKE_UP_THS rw
            {
-                7 single_double_tap, //Enables single/double-tap event. Default 0
-                6 usr_off_on_wu, //
-                    //Drives the low-pass filtered data with user offset correction
-                    //(instead of high-pass filtered data) to the wake-up and the
-                    //activity/inactivity functions. Refer to Figure 30. Default
-                    //value: 0
-                5..0 wk_ths //
-                    //Wake-up threshold. The resolution of the threshold depends on
-                    //the value of WU_INACT_THS_W_[2:0] in the INACTIVITY_DUR (54h)
-                    //register. Default value: 000000
+                7 single_double_tap, //Single/double-tap event enable. Default: 0
+                //(0: only single-tap event enabled;
+                //1: both single and double-tap events enabled)
+                6 usr_off_on_wu, //Drives the low-pass filtered data with user offset correction 
+                //(instead of high-pass filtered data) to the wakeup function.
+                5..0 wk_ths //Threshold for wakeup: 1 LSB weight depends on WAKE_THS_W in
+                //WAKE_UP_DUR (5Ch). Default value: 000000
            },
            0x5C WAKE_UP_DUR rw
            {
-                7 ff_dur[0], //Free-fall duration event. Default: 0
-                    //For the complete configuration of the free-fall duration, refer
-                    //to FF_DUR_[4:0] in the FREE_FALL (5Dh) configuration.
-                    //1 LSB = 1/ODR_XL time
-                6..5 wake_dur, //Wake-up duration event. Default: 00
-                    //1 LSB = 1/ODR_XL time
-                3..0 sleep_dur //
-                    //Duration to go in sleep mode. Default value:
-                    //0000 (this corresponds to 16 ODR)
-                    //1 LSB = 512/ODR_XL time
+                7 ff_dur5, //Free fall duration event. Default: 0
+                //For the complete configuration of the free-fall duration, refer to FF_DUR[4:0] in
+                //FREE_FALL (5Dh) configuration.
+                //1 LSB = 1 ODR_time
+                6..5 wake_dur, //Wake up duration event. Default: 00
+                //1LSB = 1 ODR_time
+                4 wake_ths_w, //Weight of 1 LSB of wakeup threshold. Default: 0
+                //(0: 1 LSB = FS_XL / (26);
+                //1: 1 LSB = FS_XL / (28) )
+                3..0 sleep_dur //Duration to go in sleep mode. Default value: 0000 (this corresponds to 16 ODR)
+                //1 LSB = 512 ODR
            },
            0x5D FREE_FALL rw
            {
-                7..3 ff_dur[1..5], //Free-fall duration event. Default: 00000
-                    //For the complete configuration of the free-fall duration, refer
-                    //to FF_DUR_5 in the WAKE_UP_DUR (5Ch) configuration.
-                2..0 ff_ths, //Free-fall threshold setting. Default: 000
-                    //000: 156mg
-                    //001: 219mg
-                    //010: 250mg
-                    //011: 312mg
-                    //100: 344mg
-                    //101: 406mg
-                    //110: 469mg
-                    //111: 500mg
+                7..3 ff_dur, //Free-fall duration event. Default: 0
+                //For the complete configuration of the free fall duration, refer to FF_DUR5 in
+                //WAKE_UP_DUR (5Ch) configuration
+                2..0 ff_ths //Free fall threshold setting. Default: 000
+                //FF_THS[2:0] | Threshold value
+                //000 | 312 mg
+                //001 | 438 mg
+                //010 | 500 mg
+                //011 | Reserved
+                //100 | Reserved
+                //101 | Reserved
+                //110 | Reserved
+                //111 | Reserved
            },
-           0x5E MD1_CFG rw
-               //Functions routing to INT1 pin register (R/W). Each bit in this
-               //register enables a signal to be carried over the INT1 pin. The output
-               //of the pin is the OR combination of the signals selected here and in
-               //the INT1_CTRL (0Dh) register.
+           0x5E MD1_CFG rw 
            {
-                7 int1_sleep_change, //
-                    //Routing activity/inactivity recognition event to INT1.
-                    //Default: 0
-                    //(0: routing activity/inactivity event to INT1 disabled;
-                    //1: routing activity/inactivity event to INT1 enabled)
-                6 int1_single_tap, //
-                    //Routing single-tap recognition event to INT1. Default: 0
-                    //(0: routing single-tap event to INT1 disabled;
-                    //1: routing single-tap event to INT1 enabled)
-                5 int1_wu, //
-                    //Routing wake-up event to INT1. Default value: 0
-                    //(0: routing wake-up event to INT1 disabled;
-                    //1: routing wake-up event to INT1 enabled)
-                4 int1_ff, //
-                    //Routing free-fall event to INT1. Default value: 0
-                    //(0: routing free-fall event to INT1 disabled;
-                    //1: routing free-fall event to INT1 enabled)
-                3 int1_double_tap, //
-                    //Routing tap event to INT1. Default value: 0
-                    //(0: routing double-tap event to INT1 disabled;
-                    //1: routing double-tap event to INT1 enabled)
-                2 int1_6d, //
-                    //Routing 6D event to INT1. Default value: 0
-                    //(0: routing 6D event to INT1 disabled;
-                    //1: routing 6D event to INT1 enabled)
-                1 int1_emb, //
-                    //Routing embedded functions event to INT1. Default value: 0
-                    //(0: routing embedded functions event to INT1 disabled;
-                    //1: routing embedded functions event to INT1 enabled)
-                0 int1_shub //
-                    //Routing sensor hub communication concluded event to INT1.
-                    //Default value: 0
-                    //(0: routing sensor hub communication concluded event to
-                    //INT1 disabled;
-                    //1: routing sensor hub communication concluded event to INT1
-                    //enabled)
+                7 int1_sleep_change, //Routing of activity/inactivity recognition event on INT1. Default: 0
+                //(0: routing of activity/inactivity event on INT1 disabled;
+                //1: routing of activity/inactivity event on INT1 enabled)
+                6 int1_single_tap, //Routing of single-tap recognition event on INT1. Default: 0
+                //(0: routing of single-tap event on INT1 disabled;
+                //1: routing of single-tap event on INT1 enabled)
+                5 int1_wu, //Routing of wakeup event on INT1. Default value: 0
+                //(0: routing of wakeup event on INT1 disabled;
+                //1: routing of wakeup event on INT1 enabled)
+                4 int1_ff, //Routing of free-fall event on INT1. Default value: 0
+                //(0: routing of free-fall event on INT1 disabled;
+                //1: routing of free-fall event on INT1 enabled)
+                3 int1_double_tap, //Routing of tap event on INT1. Default value: 0
+                //(0: routing of double-tap event on INT1 disabled;
+                //1: routing of double-tap event on INT1 enabled)
+                2 int1_6d, //Routing of 6D event on INT1. Default value: 0
+                //(0: routing of 6D event on INT1 disabled;
+                //1: routing of 6D event on INT1 enabled)
+                1 int1_emb_func, //Routing of embedded functions event on INT1. Default value: 0
+                //(0: routing of embedded functions event on INT1 disabled;
+                //1: routing embedded functions event on INT1 enabled)
+                0 int1_shub //Routing of sensor hub communication concluded event on INT1.
+                //Default value: 0
+                //(0: routing of sensor hub communication concluded event on INT1 disabled;
+                //1: routing of sensor hub communication concluded event on INT1 enabled)
            },
-           0x5F MD2_CFG rw
-               //Functions routing to INT2 pin register (R/W). Each bit in this
-               //register enables a signal to be carried over the INT2 pin. The output
-               //of the pin is the OR combination of the signals selected here and in
-               //the INT2_CTRL (0Eh) register.
+           0x5F MD2_CFG rw 
            {
-                7 int2_sleep_change, //
-                    //Routing activity/inactivity recognition event to INT1.
-                    //Default: 0
-                    //(0: routing activity/inactivity event to INT1 disabled;
-                    //1: routing activity/inactivity event to INT1 enabled)
-                6 int2_single_tap, //
-                    //Routing single-tap recognition event to INT1. Default: 0
-                    //(0: routing single-tap event to INT1 disabled;
-                    //1: routing single-tap event to INT1 enabled)
-                5 int2_wu, //
-                    //Routing wake-up event to INT1. Default value: 0
-                    //(0: routing wake-up event to INT1 disabled;
-                    //1: routing wake-up event to INT1 enabled)
-                4 int2_ff, //
-                    //Routing free-fall event to INT1. Default value: 0
-                    //(0: routing free-fall event to INT1 disabled;
-                    //1: routing free-fall event to INT1 enabled)
-                3 int2_double_tap, //
-                    //Routing tap event to INT1. Default value: 0
-                    //(0: routing double-tap event to INT1 disabled;
-                    //1: routing double-tap event to INT1 enabled)
-                2 int2_6d, //
-                    //Routing 6D event to INT1. Default value: 0
-                    //(0: routing 6D event to INT1 disabled;
-                    //1: routing 6D event to INT1 enabled)
-                1 int2_emb, //
-                    //Routing embedded functions event to INT1. Default value: 0
-                    //(0: routing embedded functions event to INT1 disabled;
-                    //1: routing embedded functions event to INT1 enabled)
-                0 int2_timestamp //
-                    //Enables routing the alert for timestamp overflow within 5.6 ms
-                    //to the INT2 pin.
+                7 int2_sleep_change, //Routing of activity/inactivity recognition event on INT2. Default: 0
+                //(0: routing of activity/inactivity event on INT2 disabled;
+                //1: routing of activity/inactivity event on INT2 enabled)
+                6 int2_single_tap, //Single-tap recognition routing on INT2. Default: 0
+                //(0: routing of single-tap event on INT2 disabled;
+                //1: routing of single-tap event on INT2 enabled)
+                5 int2_wu, //Routing of wakeup event on INT2. Default value: 0
+                //(0: routing of wakeup event on INT2 disabled;
+                //1: routing of wake-up event on INT2 enabled)
+                4 int2_ff, //Routing of free-fall event on INT2. Default value: 0
+                //(0: routing of free-fall event on INT2 disabled;
+                //1: routing of free-fall event on INT2 enabled)
+                3 int2_double_tap, //Routing of tap event on INT2. Default value: 0
+                //(0: routing of double-tap event on INT2 disabled;
+                //1: routing of double-tap event on INT2 enabled)
+                2 int2_6d, //Routing of 6D event on INT2. Default value: 0
+                //(0: routing of 6D event on INT2 disabled;
+                //1: routing of 6D event on INT2 enabled)
+                1 int2_emb_func, //Routing of embedded functions event on INT2. Default value: 0
+                //(0: routing of embedded functions event on INT2 disabled;
+                //1: routing embedded functions event on INT2 enabled)
+                0 int2_timestamp //Enables routing on INT2 pin of the alert for timestamp overflow within 6.4 ms
            },
            0x62 I3C_BUS_AVB rw
            {
