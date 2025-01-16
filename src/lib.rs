@@ -385,137 +385,6 @@ dev_csr! {
            0x41 TIMESTAMP1 r timestamp[8..15],
            0x42 TIMESTAMP2 r timestamp[16..23],
            0x43 TIMESTAMP3 r timestamp[24..31],
-           0x44 UI_STATUS_REG_OIS r
-           {
-                2 gyro_settling, //High when gyro is settling
-                1 gda_ois, //Is gyro OIS data available
-                0 accel_da_ois //Is accel OIS data available
-           },
-           0x45 WAKE_UP_SRC r
-           {
-                6 sleep_change_ia, //Detects change event in activity/inactivity
-                5 wakeup_ff_ia, //Detects free-fall event
-                4 sleep_state, //Sleep status bit
-                3 wu_detect, //wake-up detection status
-                2 x_wu, //wake-up on x-axis
-                1 y_wu, //wake-up on y-axis
-                0 z_wu //wake-up on z-axis
-           },
-           0x46 TAP_SRC r
-           {
-                6 tap_src_ia, //tap event detection status
-                5 single_tap, //single-tap event status
-                4 double_tap, //double-tap event status
-                3 tap_sign, //sign of acceleration detected by tap event
-                2 x_tap, //tap event on x-axis
-                1 y_tap, //tap event on y-axis
-                0 z_tap, //tap event on z-axis
-           },
-           0x47 D6D_SRC r
-           {
-                6 d6d_src_ia, //orientation change interrupt status
-                5 z_high, //z-axis high event
-                4 z_low, //z-axis low event
-                3 y_high, //y-axis high event
-                2 y_low, //y-axis low event
-                1 x_high, //x-axis high event
-                0 x_low //x-axis low event
-           },
-           0x49 EMB_FUNC_STATUS_MAINPAGE r
-           {
-                7 is_fsm_lc, //Interrupt status bit for FSM long counter timeout
-                5 is_sigmot, //Interrupt status bit for significant motion detection
-                4 is_tilt, //Interrupt status bit for tilt detection
-                3 is_step_det //Interrupt status bit for step detection
-           },
-           0x4A FSM_STATUS_MAINPAGE r
-           {
-                7 is_fsm8, //FSM8 interrupt status
-                6 is_fsm7, //FSM7 interrupt status
-                5 is_fsm6, //FSM6 interrupt status
-                4 is_fsm5, //FSM5 interrupt status
-                3 is_fsm4, //FSM4 interrupt status
-                2 is_fsm3, //FSM3 interrupt status
-                1 is_fsm2, //FSM2 interrupt status
-                0 is_fsm1 //FSM1 interrupt status
-           },
-           0x4F INTERNAL_FREQ_FINE r freq_fine, //Difference in percentage of
-                //the effective ODR (and timestamp rate) with respect to the typical.
-                //Step: 0.13%. 8-bit format, two's complement.
-                //See datasheet for more info.
-           0x50 FUNCTIONS_ENABLE rw
-           {
-                7 enable_interrupts, //Enable basic interrupts
-                6 enable_timestamp, //Enable timestamp counter
-                3 dis_res_on_read_all_int, //Disable reset latched on reading
-                    //ALL_INT_SRC
-                1..0 enable_inact //Enables sleep function. Default value: 00
-                    //00: stationary/motion-only interrupts generated,
-                    //accel/gyro configuration do not change.
-                    //01: sets accel to low-power mode 1 with accel ODR selected
-                    //through the XL_INACT_ODR_[1:0] bits of the INACTIVITY_DUR (54h)
-                    //register, gyroscope configuration does not change.
-                    //10: sets accelerometer to low-power mode 1 with accelerometer
-                    //ODR selected through the XL_INACT_ODR_[1:0] bits of the
-                    //INACTIVITY_DUR (54h) register, gyroscope in sleep mode;
-                    //11: sets accelerometer to low-power mode 1 with accelerometer
-                    //ODR selected through the XL_INACT_ODR_[1:0] bits of the
-                    //INACTIVITY_DUR (54h) register, gyroscope in power-down mode
-           },
-           0x51 DEN rw
-           {
-                6 den_lvl, //Enables DEN data level-sensitive trigger mode
-                5 den_lvl_latched, //Enables DEN data level-sensitive latched mode
-                4 den_accel, //Extends DEN to accel
-                3 den_x, //DEN value stored on LSB of x-axis, default yes
-                2 den_y, //DEN value stored on LSB of y-axis, default yes
-                1 den_z, //DEN value stored on LSB of z-axis, default yes
-                0 den_accel_gyro //DEN stamping sensor selection. Default 0.
-                    //0: DEN pin info stamped in the gyroscope axis selected by bits
-                    //DEN_X, DEN_Y, DEN_Z
-                    //1: DEN pin info stamped in the accelerometer axis selected by
-                    //bits DEN_X, DEN_Y, DEN_Z)
-           },
-           0x54 INACTIVITY_DUR rw
-           {
-                7 sleep_status_on_int, //Sleep interrupt mode configuration.
-                    //If the INT1_SLEEP_CHANGE or INT2_SLEEP_CHANGE bit is enabled,
-                    //drives the sleep status or sleep change on the INT pin.
-                    //Default value: 0
-                    //0: sleep change notification on INT pin
-                    //1: sleep status reported on INT pin
-                6..4 wu_inact_ths_w,
-                    //Weight of 1 LSB of wake-up (WU_THS) and activity/inactivity
-                    //(INACT_THS) threshold.
-                    //000: 7.8125 mg/LSB (default)
-                    //001: 15.625 mg/LSB;
-                    //010: 31.25 mg/LSB;
-                    //011: 62.5 mg/LSB;
-                    //100: 125 mg/LSB;
-                    //101 - 110 - 111: 250 mg/LSB
-                3..2 accel_inact_odr, //Selects the ODR_XL target during inactivity.
-                    //00: 1.875 Hz;
-                    //01: 15 Hz (default);
-                    //10: 30 Hz;
-                    //11: 60 Hz
-                1..0 inact_dur
-                    //Duration in the transition from stationary to motion
-                    //(from inactivity to activity).
-                    //00: transition to motion (activity) immediately at first
-                    //overthreshold event (default);
-                    //01: transition to motion (activity) after two consecutive
-                    //overthreshold events;
-                    //10: transition to motion (activity) after three consecutive
-                    //overthreshold events;
-                    //11: transition to motion (activity) after four consecutive
-                    //overthreshold events
-           },
-           0x55 INACTIVITY_THS rw
-           {
-                5..0 inact_ths //Activity/inactivity threshold. The resolution of the
-                    //threshold depends on the value of WU_INACT_THS_W_[2:0] in the
-                    //INACTIVITY_DUR (54h) register. Default value: 000000
-           },
            0x56 TAP_CFG0 rw
            {
                 6 int_clr_on_read, //This bit allows immediately clearing the latched interrupts of an event detection
@@ -835,7 +704,7 @@ dev_csr! {
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
            0x75 Z_OFS_USR rw usr_offset_z,
-           0x78 FIFO_DATA_O r UT_TAG
+           0x78 FIFO_DATA_OUT_TAG r
            {
                 7..3 tag_sensor, //FIFO tag. Identifies sensor used for FIFO data.
                     //Value     Sensor
