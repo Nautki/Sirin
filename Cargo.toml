@@ -1,0 +1,7 @@
+[package]
+name = "h3lis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dev-csr = { version = "0.1.0", path = "../dev-csr" }
