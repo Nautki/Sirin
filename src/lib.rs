@@ -12,284 +12,349 @@ use spi_handle::SpiHandle;
 dev_csr! {
     dev Lsm6dso{
         regs{
-           0x01 FUNC_CFG_ACCESS rw //enables access to some embedded functions registers
-           {
-                7 emb_func, //embedded functions config register access, default 0
-                6 shub_reg, //sensor hub config reg access, default 0
-                3 fsm_wr_ctrl, //let FSM control the CTRL registers, default 0
-                2 global_reset, //global reset of the device, default 0
-                1 spi2_reset, //pulse 1 to reset the control registers of SPI2, default 0
-                0 ois_from_ui, //Enables control of OIS config from main UI, default 0
-           },
-           0x02 PIN_CTRL rw //Pull-up control register for SDO, OCS-Aux, and SDO_Aux pins
-           {
-                7 ois_pullup_L, //1 disables pull-up on OCS_Aux and SDO_Aux pins, 0 enables, default 0
-                6 sdo_pullup, //Enables pull-up on SDO pin, default 0
-                5 post_reset_action, //0: config reset (SW reset + dyn addr reset), 1: global reset (POR reset)
-           },
-           0x03 IF_CFG rw
-           {
-                7 sda_pullup, //Enable pull-up on SDA pin, default 0
-                6 i2c_aux_pullup, //1: enable internal pull-up on aux I2C line
-                5 anti_spike_filter, //1: anti-spike on SCL and SDA always on, 0: filter managed by protocol
-                4 interrupt_active, //0: active high interrupt, 1: active low interrupt, default 0
-                3 pp_od, //Push-pull/open-drain selection on INT1 and INT2 pins. Default value: 0 (0: push-pull mode; 1: open-drain mode)
-                2 spi_mode_select, //0: 4-wire interface, 1: 3-wire interface, default 0
-                0 i2c_disable, //0: i2c and i3c enabled, 1: disabled, default 0
-           },
-           0x06 ODR_TRIG_CFG rw odr_data_amount, //ODR-triggered mode configuration register (R/W), determines amount of data generated during ref period in ODR-triggered mode. Allowed vals: 0, 4-255
-           0x07 FIFO_CTRL1 rw fifo_wtm, //FIFO watermark threshold, 1 LSB = TAG (1 byte) + 1 sensor (6 bytes) in FIFO, flag rises when #bytes in FIFO > threshold
-           0x08 FIFO_CTRL2 rw
-           {
-                7 stop_fifo_on_wtm, //Limit FIFO depth to threshold level
-                6 fifo_compr, //Enable compression
-                4 fifo_batch_odrchg, //Batch ODR nCHANGE sensor in FIFO
-                2..1 fifo_uncompr_rate, //Configures the rate of written uncompressed data (default 0). 0: do not force uncompressed data writing, 1: uncompressed data every 8 batch, 2: every 16 batch, 3: every 32 batch
-                0 fifo_dualc_fsm //Enable FSM-triggered batching of channel 2 when available, 0 disabled, 1 enabled, default 0
-           },
-           0x09 FIFO_CTRL3 rw
-           {
-                7..4 fifo_gyro_bdr, //Select batch data rate for gyro data. 0000: gyro not batched, 0001: 1.875Hz, otherwise rate = 1.875*2^{input}, max input 1100
-                3..0 fifo_accel_bdr //Select batch data rate for accelerometer. Same as gyro.
-           },
-           0x0A FIFO_CTRL4 rw
-           {
-                7..6 fifo_ts_decim, //Select decimation for timestamp batching. 00: timestamp not batched. 01: write rate = max(fifo_accel_bdr, fifo_gyro_bdr). 10: write rate = max(fifo_accel_bdr, fifo_gyro_bdr)/8.  11: write rate = max(fifo_accel_bdr, fifo_gyro_bdr)/32.
-                5..4 fifo_temp_bdr, //Select batch data rate for temperature. 00: not batched. 01: 1.875Hz. 10: 15Hz. 11: 60Hz.
-                3 fifo_gyro_eis, //Enable gyroscope EIS value batching, 0 disabled, 1 enabled, default 0.
-                2..0 fifo_mode //Mode selection.
-                    //000: FIFO disabled.
-                    //001: FIFO mode: stop collection when FIFO is full.
-                    //010: continuousWTM-to-full mode: cont. mode with wtm until
-                    //trigger is deasserted, then FIFO mode,
-                    //011: continuous-to-FIFO mode: continuous until trigger is
-                    //deasserted, then FIFO mode.
-                    //100: bypass-to-continuous mode: FIFO disabled until trigger
-                    //is deasserted, then continuous mode.
-                    //101: reserved.
-                    //110: continuous mode: if FIFO is full, new samples overwrite
-                    //old ones.
-                    //111: bypass-to-FIFO mode: FIFO disabled until trigger is
-                    //deasserted, then FIFO mode.
-           },
-           0x0B COUNTER_BDR_REG1 rw
-           {
-                6..5 trig_ctr_bdr, //Select the trigger for the internal counter of batch events for the accel, gyro, and EIS gyro.
-                    //00: accel batch event.
-                    //01: gyro batch event.
-                    //10-11: gyro EIS batch event.
-                1..0 batch_counter_thresh[0..1] //Sets the threshold for the internal
-                    //counter of batch events. When this counter reaches the
-                    //threshold, the counter is reset and counter_bdr_reached is
-                    //set to 1.
-           },
-           0x0C COUNTER_BDR_REG2 rw batch_counter_thresh[2..9],
-           0x0D INT1_CTRL rw //INT1 pin control register.
-               //Output is the OR combination of all selected here and in MD1_CFG.
-               //All bits default 0.
-           {
-                6 int1_cnt_bdr, //Enables COUNTER_BDR_IA interrupt on INT1 pin.
-                5 int1_fifo_full, //Enables FIFO full flag interrupt on INT1 pin.
-                4 int1_fifo_over, //Enables FIFO overrun interrupt on INT1 pin.
-                3 int1_fifo_thresh, //Enables FIFO threshold interrupt on INT1 pin.
-                1 int1_gyro_rdy, //Enables gyro data-ready interrupt on INT1 pin.
-                0 int1_accel_rdy //Enables accel data-ready interrupt on INT1 pin.
-           },
-           0x0E INT2_CTRL rw //INT2 pin control register.
-               //Output is the OR combination of all selected here and in MD2_CFG.
-               //All defaults 0.
-           {
-                7 int2_endop, //Enables routing the embedded-func ENDOP signal to
-                    //the INT2 pin.
-                6 int2_cnt_bdr, //Enables COUNTER_BDR_IA interrupt on INT2 pin.
-                5 int2_fifo_full, //Enables FIFO full interrupt on INT2 pin.
-                4 int2_fifo_over, //Enables FIFO overrun interrupt on INT2 pin.
-                3 int2_fifo_thresh, //Enables FIFO threshold interrupt on INT2 pin.
-                2 int2_eis_rdy, //Enables gyro EIS data-ready interrupt on INT2 pin.
-                1 int2_gyro_rdy, //Enables gyro data-ready interrupt on INT2 pin.
-                0 int2_accel_rdy //Enables accel data-ready interrupt on INT2 pin.
-           },
-           0x0F WHO_AM_I r whoami, //whoami value. Read-only, fixed at 0x70.
-           0x10 CTRL1 rw
-           {
-                6..4 accel_mode, //Accel op mode selection.
-                    //000: high-performance mode (default).
-                    //001: high-accuracy ODR mode.
-                    //010: reserved.
-                    //011: ODR-triggered mode.
-                    //100: low-power mode 1 (2 mean).
-                    //101: low-power mode 2 (4 mean).
-                    //110: low-power mode 3 (8 mean).
-                    //111: normal mode.
-                3..0 accel_odr //Accel ODR selection.
-                    //0000: power down (default)
-                    //0001: 1.875Hz (low power)
-                    //0010: 7.5Hz (high-performance, normal)
-                    //0011: 15Hz (LP, HP, normal)
-                    //0100: 30Hz (LP, HP, normal)
-                    //0101: 60Hz (LP, HP, normal)
-                    //0110: 120Hz (LP, HP, normal)
-                    //0111: 240Hz (LP, HP, normal)
-                    //1000: 480Hz (HP, normal)
-                    //1001: 960Hz (HP, normal)
-                    //1010: 1.92kHz (HP, normal)
-                    //1011: 3.84kHz (HP)
-                    //1100: 7.68kHz (HP)
-                    //others: reserved
-           },
-           0x11 CTRL2 rw
-           {
-                6..4 gyro_mode, //Gyro op mode select.
-                    //000: high-performance (default)
-                    //001: high-accuracy ODR
-                    //010: reserved
-                    //011: ODR-triggered
-                    //100: sleep
-                    //101: low-power
-                    //110-111: reserved
-                3..0 gyro_odr //Accel ODR selection.
-                    //0000: power down (default)
-                    //0010: 7.5Hz (high-performance, normal)
-                    //0011: 15Hz (LP, HP, normal)
-                    //0100: 30Hz (LP, HP, normal)
-                    //0101: 60Hz (LP, HP, normal)
-                    //0110: 120Hz (LP, HP, normal)
-                    //0111: 240Hz (LP, HP, normal)
-                    //1000: 480Hz (HP, normal)
-                    //1001: 960Hz (HP, normal)
-                    //1010: 1.92kHz (HP, normal)
-                    //1011: 3.84kHz (HP)
-                    //1100: 7.68kHz (HP)
-                    //others: reserved
-           },
-           0x12 CTRL3 rw
-           {
-                7 mem_reset, //Resets memory content. Automatically clears.
-                6 block_upd, //Block data update.
-                    //0: continuous update
-                    //1: output registers are not updated until LSB or MSB have been
-                    //read.
-                    //default: 1
-                2 auto_inc, //Auto-increment addresses during multiple-byte serial
-                    //access. Default 1.
-                    //0: disabled, 1: enabled.
-                0 sw_reset //Software reset, resets all control registers.
-                    //Automatically cleared. Default 0.
-           },
-           0x13 CTRL4 rw
-           {
-                4 int2_on_int1, //OR INT2 output onto INT1 output
-                3 mask_rdy, //Mask data-ready signal, default 0 (disabled),
-                    //until filter setting ends.
-                2 int2_temp_dry, //Enable temperature sensor data-ready interrupt
-                    //on INT2 pin.
-                1 pulsed_rdy, //Enable pulsed data-ready mode.
-                0 int2_input_ah //Is INT2 input trigger active high
-           },
-           0x14 CTRL5 rw
-           {
-                2..1 bus_act_sel, //Bus available time select for IBI.
-                    //00: 2u.
-                    //01: 50u (default).
-                    //10: 1ms.
-                    //11: 25ms.
-                0 int_i3c //Enables INT pin when I3C is enabled. Default 0.
-           },
-           0x15 CTRL6 rw
-           {
-                6..4 gyro_lpbw, //Gyro low-pass bandwidth select. See datasheet.
-                3..0 gyro_fs //Gyro UI chain full-scale select.
-                    //0000: �125dps (default)
-                    //0001: �250dps
-                    //0010: �500dps
-                    //0011: �1000dps
-                    //0100: �2000dps
-                    //1100: �4000dps
-                    //Others: reserved
-           },
-           0x16 CTRL7 rw
-           {
-                0 gyro_lp_enable //enable gyro low-pass filter
-           },
-           0x17 CTRL8 rw
-           {
-                7..5 accel_hplp_bw, //Accel high-pass and low-pass bandwidth.
-                    //See datasheet because big table.
-                3 accel_dc, //Enables dual-channel mode. Default 0 (disabled).
-                1..0 accel_fs //Accel full-scale select.
-                    //00: �2g
-                    //01: �4g
-                    //10: �8g
-                    //11: �16g
-           },
-           0x18 CTRL9 rw
-           {
-                6 accel_hpref, //Enabled accel high-pass reference mode. Default 0.
-                5 accel_fast_settle, //Enables filter fast settling mode. Def 0.
-                4 accel_hp_slope, //Accel slope filter/HP filter selection.
-                    //0: LP filter path
-                    //1: HP filter path
-                3 accel_lpf2, //enables second stage filtering for accel
-                1 accel_ofs_w, //Accel user register offset weight
-                    //0: 2^-10g/LSB
-                    //1: 2^-6g/LSB
-                0 accel_ofs_en //Enables accel user offset correction block.
-           },
-           0x19 CTRL10 rw
-           {
-                6 emb_debug, //Enables embedded function debug mode
-                3..2 gyro_st, //Gyro self-test select
-                    //00: normal (default)
-                    //01: positive sign
-                    //10: negative sign
-                    //11: reserved
-                1..0 accel_st //Accel self-test select
-                    //00: normal (default)
-                    //01: positive sign
-                    //10: negative sign
-                    //11: reserved
-           },
-           0x1A CTRL_STATUS r
-           {
-                2 ctrl_status //Flag that indicates the current controller of
-                    //the device's config registers. Default 0.
-                    //0: All registers and configs are available from the standard
-                    //interface.
-                    //1: Some registers and configs are under FSM control and are 
-                    //in read-only mode from the standard interface.
-           },
-           0x1B FIFO_STATUS1 r fifo_diff[0..7], //Number of unread sensor data
-                //(TAG + 6 bytes) stored in FIFO.
-           0x1C FIFO_STATUS2 r
-           {
-                7 fifo_wtm_ia, //FIFO watermark status
-                6 fifo_ovr_ia, //FIFO overrun status
-                5 fifo_full_ia, //FIFO full status, 1: will be full at next ODR
-                4 ctr_bdr_ia, //COUNTER_BDR_IA status, shows if threshold reached
-                3 fifo_ovr_latched, //FIFO latched overrun status
-                0 fifo_diff[8]
-           },
-           0x1D ALL_INT_SRC r //Source register for all interrupts
-           {
-                7 emb_ia, //embedded func interrupt status
-                6 shub_ia, //sensor hub interrupt status
-                5 sleep_ia, //Detects change in activity/inactivity status
-                4 d6d_ia, //Orientation change status
-                2 tap_ia, //single or double tap event detection status
-                1 wu_ia, //wake event status
-                0 ff_ia //free-fall event status
-           },
-           0x1E STATUS_REG r
-           {
-                7 ts_endcnt, //Timestamp overflow alert
-                5 ois_rdy, //Accel or gyro OIS data ready
-                4 gda_eis, //EIS gyro data ready
-                2 temp_da, //temp data available
-                1 gyro_da, //gyro data available
-                0 accel_da //accel data available
-           },
-           ///Temp data output register
-           0x20 OUT_TEMP_L r temp_data[0..7], 
+            0x01 FUNC_CFG_ACCESS rw //enables access to some embedded functions registers
+            {
+                 7 emb_func, //embedded functions config register access, default 0
+                 6 shub_reg, //sensor hub config reg access, default 0
+            },
+            0x02 PIN_CTRL rw //Pull-up control register for SDO, OCS-Aux, and SDO_Aux pins
+            {
+                 7 ois_pullup_L, //1 disables pull-up on OCS_Aux and SDO_Aux pins, 0 enables, default 0
+                 6 sdo_pullup, //Enables pull-up on SDO pin, default 0
+            },
+            0x07 FIFO_CTRL1 rw fifo_wtm[1..7], //FIFO watermark threshold, 1 LSB = TAG (1 byte) + 1 sensor (6 bytes) in FIFO, flag rises when #bytes in FIFO > threshold
+            0x08 FIFO_CTRL2 rw
+            {
+                 7 stop_fifo_on_wtm, //Limit FIFO depth to threshold level
+                 6 fifo_compr, //Enable compression
+                 4 fifo_batch_odrchg, //Batch ODR nCHANGE sensor in FIFO
+                 2..1 fifo_uncompr_rate, //Configures the rate of written uncompressed data (default 0). 0: do not force uncompressed data writing, 1: uncompressed data every 8 batch, 2: every 16 batch, 3: every 32 batch
+                 0 fifo_wtm[0], //Enable FSM-triggered batching of channel 2 when available, 0 disabled, 1 enabled, default 0
+            },
+            0x09 FIFO_CTRL3 rw
+            {
+                 7..4 fifo_gyro_bdr, //Select batch data rate for gyro data. 0000: gyro not batched, 0001: 1.875Hz, otherwise rate = 1.875*2^{input}, max input 1100
+                 3..0 fifo_accel_bdr //Select batch data rate for accelerometer. Same as gyro.
+            },
+            0x0A FIFO_CTRL4 rw
+            {
+                 7..6 fifo_ts_decim, //Select decimation for timestamp batching. 00: timestamp not batched. 01: write rate = max(fifo_accel_bdr, fifo_gyro_bdr). 10: write rate = max(fifo_accel_bdr, fifo_gyro_bdr)/8.  11: write rate = max(fifo_accel_bdr, fifo_gyro_bdr)/32.
+                 5..4 fifo_temp_bdr, //Select batch data rate for temperature. 00: not batched. 01: 1.875Hz. 10: 15Hz. 11: 60Hz.
+                 2..0 fifo_mode //Mode selection.
+                     //000: FIFO disabled.
+                     //001: FIFO mode: stop collection when FIFO is full.
+                     //010: continuousWTM-to-full mode: cont. mode with wtm until
+                     //trigger is deasserted, then FIFO mode,
+                     //011: continuous-to-FIFO mode: continuous until trigger is
+                     //deasserted, then FIFO mode.
+                     //100: bypass-to-continuous mode: FIFO disabled until trigger
+                     //is deasserted, then continuous mode.
+                     //101: reserved.
+                     //110: continuous mode: if FIFO is full, new samples overwrite
+                     //old ones.
+                     //111: bypass-to-FIFO mode: FIFO disabled until trigger is
+                     //deasserted, then FIFO mode.
+            },
+            0x0B COUNTER_BDR_REG1 rw
+            {
+                 7    pulsed_drdy, //Enables pulsed data-ready mode.
+                     //0: data-ready latched mode (returns to 0 only after an interface reading) (default)
+                     //1: data-ready pulsed mode (the data ready pulses are 75 Âs long)
+                 6..5 trig_ctr_bdr, //Select the trigger for the internal counter of batch events for the accel, gyro, and EIS gyro.
+                     //00: accel batch event.
+                     //01: gyro batch event.
+                     //10-11: gyro EIS batch event.
+                 2..0 batch_counter_thresh[0..2] //Sets the threshold for the internal
+                     //counter of batch events. When this counter reaches the
+                     //threshold, the counter is reset and counter_bdr_reached is
+                     //set to 1.
+            },
+            0x0C COUNTER_BDR_REG2 rw batch_counter_thresh[3..10],
+            0x0D INT1_CTRL rw //INT1 pin control register.
+                //Output is the OR combination of all selected here and in MD1_CFG.
+                //All bits default 0.
+            {
+                 7 den_drdy_flag, //Sends DEN_DRDY (DEN stamped on the sensor data flag) to the INT1 pin
+                 6 int1_cnt_bdr, //Enables COUNTER_BDR_IA interrupt on INT1 pin.
+                 5 int1_fifo_full, //Enables FIFO full flag interrupt on INT1 pin.
+                 4 int1_fifo_over, //Enables FIFO overrun interrupt on INT1 pin.
+                 3 int1_fifo_thresh, //Enables FIFO threshold interrupt on INT1 pin.
+                 2 int1_boot //Enables boot status on the INT1 pin
+                 1 int1_gyro_rdy, //Enables gyro data-ready interrupt on INT1 pin.
+                 0 int1_accel_rdy //Enables accel data-ready interrupt on INT1 pin.
+            },
+            0x0E INT2_CTRL rw //INT2 pin control register.
+                //Output is the OR combination of all selected here and in MD2_CFG.
+                //All defaults 0.
+            {
+                 6 int2_cnt_bdr, //Enables COUNTER_BDR_IA interrupt on INT2 pin.
+                 5 int2_fifo_full, //Enables FIFO full interrupt on INT2 pin.
+                 4 int2_fifo_over, //Enables FIFO overrun interrupt on INT2 pin.
+                 3 int2_fifo_thresh, //Enables FIFO threshold interrupt on INT2 pin.
+                 2 int2_temp_rdy, //Enables temperature data-ready interrupt on INT2 pin.
+                 1 int2_gyro_rdy, //Enables gyro data-ready interrupt on INT2 pin.
+                 0 int2_accel_rdy //Enables accel data-ready interrupt on INT2 pin.
+            },
+            0x0F WHO_AM_I r whoami, //whoami value. Read-only, fixed at 0x6C.
+            0x10 CTRL1_XL rw
+            {
+                 7..4 accel_odr_mode, //Accel ODR selection.
+                     //When XL_HM_MODE=1 in CTRL6_C:
+                         //0000: Power-down
+                         //1011: 1.6Hz (low power only)
+                         //0001: 12.5Hz (low power)
+                         //0010: 26Hz (low power)
+                         //0011: 52Hz (low power)
+                         //0100: 104Hz (normal mode)
+                         //0101: 208Hz (normal mode)
+                         //0110: 416Hz (high performance)
+                         //0111: 833Hz (high performance)
+                         //1000: 1.66kHz (high performance)
+                         //1001: 3.33kHz (high performance)
+                         //1010: 6.66kHz (high performance)
+                         //11xx: reserved
+                     //Wnen XL_HM_MODE=0 in CTRL6_C:
+                         //0000: Power-down
+                         //1011: 12.5Hz (high performance)
+                         //0001: 12.5Hz (high performance)
+                         //0010: 26Hz (high performance)
+                         //0011: 52Hz (high performance)
+                         //0100: 104Hz (high performance)
+                         //0101: 208Hz (high performance)
+                         //0110: 416Hz (high performance)
+                         //0111: 833Hz (high performance)
+                         //1000: 1.66kHz (high performance)
+                         //1001: 3.33kHz (high performance)
+                         //1010: 6.66kHz (high performance)
+                         //11xx: Reserved
+                 3..2 accel_fs, //Accelerometer full-scale selection
+                     //When XL_FS_MODE=0 in CTRL8_XL
+                         //00: Â±2g default)
+                         //01: Â±16
+                         //10: Â±4
+                         //11: Â±8
+                     //When XL_FS_MODE=1 in CTRL8_XL
+                         //00: Â±2g default)
+                         //01: Â2g
+                         //10: Â±4
+                         //11: Â±8
+                 1 accel_lpf2, //Accelerometer high-resolution selection
+                     //0: output from first stage digital filtering selected (default)
+                     //1: output from LPF2 second filtering stage selected
+            },
+            0x11 CTRL2_G rw
+            {
+                 7..4 gyro_odr, //Accel output data rate selection.
+                     //When gyro_hm_mode=1:
+                         //0000: power down (default)
+                         //0001: 12.5Hz (low power)
+                         //0010: 26Hz (low power)
+                         //0011: 52Hz (low power)
+                         //0100: 104Hz (normal)
+                         //0101: 208Hz (normal)
+                         //0110: 416Hz (high performance)
+                         //0111: 833Hz (high performance)
+                         //1000: 1.66kHz (high performance)
+                         //1001: 3.33kHz (high performance)
+                         //1010: 6.66kHz (high performance)
+                         //others: reserved
+                     //When gyro_hm_mode=0:
+                         //0000: power down (high performance)
+                         //0001: 12.5Hz (high performance)
+                         //0010: 26Hz (high performance)
+                         //0011: 52Hz (high performance)
+                         //0100: 104Hz (high performance)
+                         //0101: 208Hz (high performance)
+                         //0110: 416Hz (high performance)
+                         //0111: 833Hz (high performance)
+                         //1000: 1.66kHz (high performance)
+                         //1001: 3.33kHz (high performance)
+                         //1010: 6.66kHz (high performance)
+                         //others: reserved
+                 3..2 gyro_fs_select, //Gyroscope UI chain full-scale selection
+                     //00: Â±250 dp
+                     //01: Â±500 dp
+                     //10: Â±1000 dp
+                     //11: Â±2000 dp
+                 1 gyro_125dps, //Selects gyro UI chain full-scale Â±125 dp
+                     //0: FS selected through gyro_fs_select
+                     //1: FS set to Â±125 dp
+            },
+            0x12 CTRL3_C rw
+            {
+                 7 reboot_mem, //Reboots memory content. Default 0, auto-cleared.
+                 6 block_update, //Block data update. Default value: 0
+                     //0: continuous update
+                     //1: output registers are not updated until MSB and LSB have been read
+                 5 interrupts_active_low, //Whether or not interrupts are active low, default 0
+                 4 pp_od, //Interrupt activation level. Default value: 0
+                     //0: interrupt output pins active high
+                     //1: interrupt output pins active low
+                 3 spi_mode_select, //Push-pull/open-drain selection on the INT1 and INT2 pins. Default value: 0
+                     //0: push-pull mode
+                     //1: open-drain mode
+                 2 inc_addrs, //Register address automatically incremented during a multiple byte access with a serial interface (IÂ²C or SPI). Default value: 1
+                     //0: disabled
+                     //1: enabled
+                 0 sw_reset, //Set 1 to reset software, default 0, auto-cleared.
+            },
+            0x13 CTRL4 rw
+            {
+                 6 gyro_sleep, //Enables gyroscope sleep mode. Default value: 0
+                 5 int2_on_int1, //Enables all interrupt signals available on the INT1 pin. Default value: 0
+                     //0: interrupt signals divided between the INT1 and INT2 pins
+                     //1: all interrupt signals in logic or on the INT1 pin
+                 3 drdy_mask, //Enables data available
+                     //0: disabled
+                     //1: mask DRDY on pin (both accelerometer and gyroscope) until filter settling ends (accelerometer and gyroscope independently masked)
+                 2 disable_i2c, //Disables IÂ²C interface. Default value: 
+                     //0: SPI, IÂ²C, and MIPI I3CSM interfaces enabled(default)
+                     //1: IÂ²C interface disable
+                 1 gyro_lpf1, //Enables gyroscope digital LPF1 if the auxiliary SPI is disabled; the bandwidth can be selected through FTYPE[2:0] in CTRL6_C (15h).
+            },
+            0x14 CTRL5 rw
+            {
+                 7 accel_ulp, //Enables accelerometer ultralow-power mode. Default value: 0
+                 6..5 read_wraparound, //Circular burst mode (wraparound) read from the output registers. Default value: 00
+                     //00: no wraparound
+                     //01: accelerometer only
+                     //10: gyroscope only
+                     //11: gyroscope + accelerometer
+                 3..2 gyro_selftest, //Enables angular rate sensor self-test. Default value: 00
+                     //00: self-test disabled
+                     //01: Positive sign self-test
+                     //10: Reserved
+                     //11: Negative sign self-test
+                 1..0 accel_selftest, //Enables linear acceleration sensor self-test. Default value: 00
+                     //00: self-test disabled
+                     //01: Positive sign self-test
+                     //10: Negative sign self-test
+                     //11: Reserved
+            },
+            0x15 CTRL6_C rw
+            {
+                 7..5 den_trigger_mode, //Trigger mode selection for DEN
+                     //100: Edge-sensitive trigger mode is selected.
+                     //010: Level-sensitive trigger mode is selected.
+                     //011: Level-sensitive latched mode is selected.
+                     //110: Level-sensitive FIFO enable mode is selected.
+                 4 accel_hp_dis, //Disables high-performance operating mode for the accelerometer. Default value: 0
+                 3 accel_offset_weight, //Weight of the accelerometer user offset bits of registers X_OFS_USR (73h), Y_OFS_USR (74h), Z_OFS_USR (75h)
+                     //0: 2^-10 g/LSB
+                     //1: 2^-6 g/LSB
+                 2..0 gyro_lpf_bw, //Gyroscope low-pass filter (LPF1) bandwidth selection.
+                     //Table didn't fit, see datasheet
+            },
+            0x16 CTRL7_G rw
+            {
+                 7 gyro_hp_dis, //Disables high-performance operating mode for gyroscope. Default value: 0
+                 6 gyro_hpf_enable, //Enables gyroscope digital high-pass filter. The filter is enabled only if the gyroscope is in HP mode. Default value: 0
+                 5..4 gyro_hpf_cutoff, //Gyroscope digital HP filter cutoff selection. Default: 00
+                     //00: 16 mHz
+                     //01: 65 mHz
+                     //10: 260 mHz
+                     //11: 1.04 Hz
+                 2 ois_on_primary, //Selects how to enable and disable the OIS chain, after first configuration and enabling through SPI2.
+                     //0: OIS chain is enabled/disabled with SPI2 interface
+                     //1: OIS chain is enabled/disabled with primary interface
+                 1 accel_offset_enable, //Enables accelerometer user offset correction block; it is valid for the low-pass path - see Figure 17. Accelerometer composite filter. Default value: 0
+                     //0: accelerometer user offset correction block bypassed
+                     //1: accelerometer user offset correction block enabled
+                 0 ois_enable, //Enables/disables the OIS chain from the primary interface when ois_on_primary is 1.
+            },
+            0x17 CTRL8_XL rw
+            {
+                 7..5 accel_hpf_cutoff, //Accelerometer LPF2 and HP filter configuration and cutoff setting.
+                     //Low Pass, accel_lpf2=0: ODR/2
+                     //Low Pass, accel_lpf2=1:
+                         //000: ODR/4
+                         //001: ODR/10
+                         //010: ODR/20
+                         //011: ODR/45
+                         //100: ODR/100
+                         //101: ODR/200
+                         //110: ODR/400
+                         //111: ODR/800
+                     //High Pass:
+                         //000: ODR/4
+                         //001: ODR/10
+                         //010: ODR/20
+                         //011: ODR/45
+                         //100: ODR/100
+                         //101: ODR/200
+                         //110: ODR/400
+                         //111: ODR/800
+                 4 accel_hp_refmode, //Enables accelerometer high-pass filter reference mode (valid for high-pass path - HP_SLOPE_XL_EN bit must be 1). Default value: 0
+                 3 accel_fastsettle, //Enables accelerometer LPF2 and HPF fast-settling mode. The filter sets the second samples after writing this bit. Active only during device exit from power- down mode. Default value: 0
+                 2 accel_slope_hp, //Accelerometer slope filter / high-pass filter selection
+                 1 accel_new_fs, //Accelerometer full-scale management between UI chain and OIS chain
+                     //0: old full-scale mode. When XL UI is on, the full scale is the same between UI/OIS and is chosen by the UI CTRL registers; when XL UI is in PD, the OIS can choose the FS.
+                     //1: new full-scale mode. Full scales are independent between the UI/OIS chain but both bound to Â±8g
+                 0 lpf2_on_6d, //LPF2 on 6D function selection.
+                     //0: ODR/2 low-pass filtered data sent to 6D interrupt function
+                     //1: LPF2 output data sent to 6D interrupt function
+            },
+            0x18 CTRL9_XL rw
+            {
+                 7 den_x, //DEN value stored in LSB of X-axis. Default value: 1
+                 6 den_y, //DEN value stored in LSB of Y-axis. Default value: 1
+                 5 den_z, //DEN value stored in LSB of Z-axis. Default value: 1
+                 4 den_stamp, //DEN stamping sensor selection. Default value: 0
+                     //0: DEN pin info stamped in the gyroscope axis selected by bits [7:5]
+                     //1: DEN pin info stamped in the accelerometer axis selected by bits [7:5]
+                 3 den_accel_enable, //Extends DEN functionality to accelerometer sensor. Default value: 0
+                 2 den_high, //DEN active level configuration. Default value: 0
+                     //0: active low
+                     //1: active high
+                 1 i3c_disable, //Disables MIPI I3CSM communication protocol, default 0
+            },
+            0x19 CTRL10_C rw
+            {
+                5 timestamp_enable, //Enables timestamp counter. Default value: 0
+                     //The counter is readable in TIMESTAMP0 (40h), TIMESTAMP1 (41h), TIMESTAMP2 (42h), and TIMESTAMP3 (43h).
+            },
+            0x1A ALL_INT_SRC r //Source register for all interrupts
+            {
+                 7 timestamp_endct, //Alerts timestamp overflow within 6.4 ms
+                 5 sleep_change_ia, //Detects change event in activity/inactivity status. Default value: 0
+                 4 orientation_ia, //Interrupt active for change in position of portrait, landscape, face-up, face-down. Default value: 0
+                 3 double_tap, //Double-tap event status. Default value: 0
+                 2 single_tap, //Single-tap event status. Default value: 0
+                 1 wake_ia, //Wake-up event status. Default value: 0
+                 0 freefall_ia, //Free-fall event status. Default value: 0
+            },
+            0x1B WAKE_UP_SRC r
+            {
+                 4 sleep_state, //Sleep status bit. Default value: 0
+                 2 wake_x, //Wake-up event detection status on X-axis. Default value: 0
+                 1 wake_y, //Wake-up event detection status on Y-axis. Default value: 0
+                 0 wake_z, //Wake-up event detection status on Z-axis. Default value: 0
+            }
+            0x1C TAP_SRC r
+            {
+                 6 tap_ia, //Tap event detection status. Default: 0
+                 3 tap_sign, //Sign of acceleration detected by tap event. Default: 0
+                 2 tap_x, //Tap event detection status on X-axis. Default value: 0
+                 1 tap_y, //Tap event detection status on Y-axis. Default value: 0
+                 0 tap_z, //Tap event detection status on Z-axis. Default value: 0
+            },
+            0x1D D6D_SRC r 
+            {
+                 7 den_drdy, //DEN data-ready signal. It is set high when the data output is related to the data coming from a DEN active condition.
+                 5 high_z, //Z-axis high event (over threshold). Default value: 0
+                 4 low_z, //Z-axis low event (under threshold). Default value: 0
+                 3 high_y, //Y-axis high event (over threshold). Default value: 0
+                 2 low_y, //Y-axis low event (under threshold). Default value: 0
+                 1 high_x, //X-axis high event (over threshold). Default value: 0
+                 0 low_x, //X-axis low event (under threshold). Default value: 0
+            },
+            0x1E STATUS_REG r
+            {
+                 2 temp_da, //temp data available
+                 1 gyro_da, //gyro data available
+                 0 accel_da //accel data available
+            },
+           0x20 OUT_TEMP_L r temp_data[8..15], //Temp data output register
            0x21 OUT_TEMP_H r temp_data[8..15],
            0x22 OUTX_L_G r gyro_pitch_rate[0..7], //Gyro pitch axis angular rate
            0x23 OUTX_H_G r gyro_pitch_rate[8..15],
