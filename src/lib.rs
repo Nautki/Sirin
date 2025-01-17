@@ -373,10 +373,7 @@ dev_csr! {
                 1 is_fsm2, //FSM2 interrupt status
                 0 is_fsm1 //FSM1 interrupt status
            },
-           0x4F INTERNAL_FREQ_FINE r freq_fine, //Difference in percentage of
-                //the effective ODR (and timestamp rate) with respect to the typical.
-                //Step: 0.13%. 8-bit format, two's complement.
-                //See datasheet for more info.
+
            0x50 FUNCTIONS_ENABLE rw
            {
                 7 enable_interrupts, //Enable basic interrupts
@@ -674,125 +671,6 @@ dev_csr! {
                 //Difference in percentage of the effective ODR (and timestamp rate) with respect to the typical. Step: 0.15%. 
                 //8-bit format, two's complement.
            },
-           
-           /*0x6F INT_OIS rw
-               //OIS interrupt configuration register
-               //The primary interface can write to this register when the
-               //OIS_CTRL_FROM_UI bit in the FUNC_CFG_ACCESS (01h) register is equal
-               //to 1 (primary IF full-control mode); this register is read-only
-               //when the OIS_CTRL_FROM_UI bit is equal to 0 (SPI2 full-control mode)
-               //and shows the content of the SPI2_INT_OIS (6Fh) register.
-           {
-                7 int2_drdy_ois, //
-                    //Enables OIS chain DRDY on INT2 pin from the UI interface.
-                    //This setting has priority over all other INT2 settings.
-                6 lvl2_ois, 
-                    //Enables level-sensitive latched mode on the OIS chain. Default value: 0
-                5 den_lh_ois,
-                    //Indicates polarity of DEN signal on OIS chain
-                    //  (0: DEN pin is active-low;
-                    //  1: DEN pin is active-high)
-                1..0 st_accel_ois
-                    // Selects accelerometer self-test – active only if the accelerometer OIS chain is enabled. Default value: 00
-                    // (00: normal mode;
-                    // 01: positive sign self-test;
-                    // 10: negative sign self-test;
-                    // 11: not allowed
-           },
-           0x70 CTRL1_OIS rw
-            {   
-                6 lvl1_ois,
-                    //Enables OIS data level-sensitive trigger
-                5 sim_ois,
-                    //SPI2 3- or 4-wire interface. Default value: 0
-                    //(0: 4-wire SPI2;
-                    //1: 3-wire SPI2
-                4 mode4_en,
-                    // Enables accelerometer OIS chain. OIS outputs are available through SPI2 in registers 28h-2Dh.
-                    // Note: OIS_EN_SPI2 must be enabled (that is, set to 1) to enable also the accelerometer OIS chain.
-                3..2 fs_g_ois,
-                    //Selects gyroscope OIS chain full-scale
-                    // (00: ±250 dps;
-                    // 01: ±500 dps;
-                    // 10: ±1000 dps;
-                    // 11: ±2000 dps)
-                1 fs_125_ois,
-                    //Selects gyroscope OIS chain full-scale ±125 dps
-                    //(0: FS selected through bits FS[1:0]_OIS_G;
-                    //1: ±125 dps)
-                0 ois_en_spi2
-                    // Enables OIS chain data processing for gyroscope in mode 3 and mode 4 (Mode4_EN = 1) and 
-                    // accelerometer data in mode 4 (Mode4_EN = 1).
-                    //  When the OIS chain is enabled, the OIS outputs are available through the SPI2 in registers OUTX_L_G 
-                    // (22h) and OUTX_H_G (23h) through OUTZ_L_A (2Ch) and OUTZ_H_A (2Dh) and STATUS_REG (1Eh) / 
-                    // STATUS_SPIAux (1Eh), and LPF1 is dedicated to this chain.  
-           },
-           0x71 CTRL2_OIS r
-           {
-            5..4 hpm_ois,
-                //Selects gyroscope OIS chain digital high-pass filter cutoff. Default value: 00
-                //  (00: 16 mHz;
-                //  HPM[1:0]_OIS
-                //  01: 65 mHz;
-                //  10: 260 mHz;
-                //  11: 1.04 Hz) 
-            2..1 ftype_ois,
-                //Selects gyroscope digital LPF1 filter bandwidth. Table 151 shows cutoff and phase values obtained with all 
-                //configurations.
-            0 hp_en_ois
-                // Enables gyroscope OIS chain digital high-pass filter
-                // Gyroscope OIS chain digital LPF1 filter bandwidth selection
-                // FTYPE_[1:0]_OIS
-                // 00
-                // 01
-                // 10
-                // 11
-                // Cutoff [Hz]  Phase @ 20 Hz [°]
-                // 335.5        -6.69
-                // 232.0        -8.78
-                // 171.1        -11.18
-                // 609.0        -4.91
-           },
-           0x72 CTRL3_OIS r
-           {
-                7..6 fs_xl_ois,
-                    //Accelerometer OIS channel full-scale selection
-                    // FS[1:0]_XL_OIS   XL_FS_MODE = 0                                              XL_FS_MODE = 1
-                    //                  XL UI ON                                   XL UI PD         -
-                    // 00 (default)     Full-scale selected from user interface    ±2 g             ±2 g
-                    // 01                                                          ±16 g            ±2 g
-                    // 10                                                          ±4 g             ±4 g
-                    // 11                                                          ±8 g             ±8 g
-                5..3 filter_xl_conf_ois,
-                    //Accelerometer OIS channel bandwidth and phase
-                    // FILTER_XL_CONF_OIS[2:0] Typ. overall bandwidth [Hz]  Typ. overall phase [°]
-                    // 000                     289                          -5.72 @ 20 Hz
-                    // 001                     258                          -6.80 @ 20 Hz
-                    // 010                     120                          -13.2 @ 20 Hz
-                    // 011                     65.1                         -21.5 @ 20 Hz
-                    // 100                     33.2                         -19.1 @ 10 Hz
-                    // 101                     16.6                         -33.5 @ 10 Hz
-                    // 110                     8.30                         -26.7 @ 4 Hz
-                    // 111                     4.14                         -26.2 @ 2 Hz
-                2..1 st1_ois,
-                    // Selects gyroscope OIS chain self-test. Default value: 00
-                    // Table 156 lists the output variation when the self-test is enabled and ST_OIS_CLAMPDIS = 1.
-                    // (00: Normal mode;
-                    // 01: Positive sign self-test;
-                    // 10: Normal mode;
-                    // 11: Negative sign self-test)
-                0 st_ois_clampdis
-                    // Disables OIS chain clamp
-                    //  (0: All OIS chain outputs = 8000h during self-test;
-                    //  1: OIS chain self-test outputs as shown in Table 156.
-                    //  Table 156. Self-test nominal output variation
-                    //  Full scale       Output variation [dps]
-                    //  ±2000            ±400
-                    //  ±1000            ±200
-                    //  ±500             ±100
-                    //  ±250             ±50
-                    //  ±125             ±25
-           },*/
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
            0x75 Z_OFS_USR rw usr_offset_z,
