@@ -799,7 +799,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
 
     pub async fn accel(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
         let (raw_x, raw_y, raw_z) = self.raw_accel().await?;
-        ///sensitivity mode TODO: read from chip
+        //sensitivity mode TODO: read from chip
         let fs = 32; 
         let scalar: i32 = 122 * fs/4;
         let accel_x: i32 = scalar * (raw_x as i32);
