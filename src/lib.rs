@@ -550,7 +550,7 @@ dev_csr! {
                 ///1 LSB = FS_XL / (2^5)
                 4..0 tap_ths_x 
            },
-           0x58 TAP_CFG2 rw 
+           0x58 TAP_CFG2 rw
            {
                 ///Enable basic interrupts (6D/4D, free-fall, wake-up, tap, inactivity). Default value: 0
                 7 interrupts_enable, 
@@ -564,7 +564,7 @@ dev_csr! {
                 ///1 LSB = FS_XL / (2^5)
                 4..0 tap_ths_y 
            },
-           0x59 TAP_THS_6D rw 
+           0x59 TAP_THS_6D rw
            {
                 ///4D orientation detection enable. Z-axis position detection is disabled.
                 7 d4d_en, 
@@ -578,7 +578,7 @@ dev_csr! {
                 ///Z-axis recognition threshold. Default value: 0
                 4..0 tap_ths_z 
            },
-           0x5A INT_DUR2 rw 
+           0x5A TAP_DUR rw
            {
                 ///Duration of maximum time gap for double tap recognition. Default: 0000
                 ///When double tap recognition is enabled, this register expresses the maximum time
@@ -647,7 +647,11 @@ dev_csr! {
                 ///111 | Reserved
                 2..0 ff_ths 
            },
-           0x5E MD1_CFG rw 
+           0x5E MD1_CFG rw
+               //Functions routing to INT1 pin register (R/W). Each bit in this
+               //register enables a signal to be carried over the INT1 pin. The output
+               //of the pin is the OR combination of the signals selected here and in
+               //the INT1_CTRL (0Dh) register.
            {
                 ///Routing of activity/inactivity recognition event on INT1. Default: 0
                 7 int1_sleep_change, 
@@ -666,7 +670,11 @@ dev_csr! {
                 ///Routing of sensor hub communication concluded event on INT1.
                 0 int1_shub 
            },
-           0x5F MD2_CFG rw 
+           0x5F MD2_CFG rw
+               //Functions routing to INT2 pin register (R/W). Each bit in this
+               //register enables a signal to be carried over the INT2 pin. The output
+               //of the pin is the OR combination of the signals selected here and in
+               //the INT2_CTRL (0Eh) register.
            {
                 ///Routing of activity/inactivity recognition event on INT2. Default: 0
                 7 int2_sleep_change, 
@@ -707,125 +715,6 @@ dev_csr! {
                 ///Difference in percentage of the effective ODR (and timestamp rate) with respect to the typical. Step: 0.15%. 
                 ///8-bit format, two's complement.
                 7..0 freq_fine
-           },
-           
-            ///OIS interrupt configuration register
-            ///The primary interface can write to this register when the
-            ///OIS_CTRL_FROM_UI bit in the FUNC_CFG_ACCESS (01h) register is equal
-            ///to 1 (primary IF full-control mode); this register is read-only
-            ///when the OIS_CTRL_FROM_UI bit is equal to 0 (SPI2 full-control mode)
-            ///and shows the content of the SPI2_INT_OIS (6Fh) register.
-           0x6F INT_OIS rw
-           {
-                ///Enables OIS chain DRDY on INT2 pin from the UI interface.
-                ///This setting has priority over all other INT2 settings.
-                7 int2_drdy_ois,
-                ///Enables level-sensitive latched mode on the OIS chain. Default value: 0
-                6 lvl2_ois, 
-                ///Indicates polarity of DEN signal on OIS chain
-                ///  (0: DEN pin is active-low;
-                ///  1: DEN pin is active-high)
-                5 den_lh_ois,
-                /// Selects accelerometer self-test – active only if the accelerometer OIS chain is enabled. Default value: 00
-                /// (00: normal mode;
-                /// 01: positive sign self-test;
-                /// 10: negative sign self-test;
-                /// 11: not allowed
-                1..0 st_accel_ois
-           },
-           0x70 CTRL1_OIS rw
-            {   
-                ///Enables OIS data level-sensitive trigger
-                6 lvl1_ois,
-                ///SPI2 3- or 4-wire interface. Default value: 0
-                ///(0: 4-wire SPI2;
-                ///1: 3-wire SPI2
-                5 sim_ois,
-                /// Enables accelerometer OIS chain. OIS outputs are available through SPI2 in registers 28h-2Dh.
-                /// Note: OIS_EN_SPI2 must be enabled (that is, set to 1) to enable also the accelerometer OIS chain.
-                4 mode4_en,
-                ///Selects gyroscope OIS chain full-scale
-                /// (00: ±250 dps;
-                /// 01: ±500 dps;
-                /// 10: ±1000 dps;
-                /// 11: ±2000 dps)
-                3..2 fs_g_ois,
-                ///Selects gyroscope OIS chain full-scale ±125 dps
-                ///(0: FS selected through bits FS[1:0]_OIS_G;
-                ///1: ±125 dps)
-                1 fs_125_ois,
-                /// Enables OIS chain data processing for gyroscope in mode 3 and mode 4 (Mode4_EN = 1) and 
-                /// accelerometer data in mode 4 (Mode4_EN = 1).
-                ///  When the OIS chain is enabled, the OIS outputs are available through the SPI2 in registers OUTX_L_G 
-                /// (22h) and OUTX_H_G (23h) through OUTZ_L_A (2Ch) and OUTZ_H_A (2Dh) and STATUS_REG (1Eh) / 
-                /// STATUS_SPIAux (1Eh), and LPF1 is dedicated to this chain.  
-                0 ois_en_spi2
-           },
-           0x71 CTRL2_OIS r
-           {
-            ///Selects gyroscope OIS chain digital high-pass filter cutoff. Default value: 00
-            ///  (00: 16 mHz;
-            ///  HPM[1:0]_OIS
-            ///  01: 65 mHz;
-            ///  10: 260 mHz;
-            ///  11: 1.04 Hz) 
-            5..4 hpm_ois,
-            ///Selects gyroscope digital LPF1 filter bandwidth. Table 151 shows cutoff and phase values obtained with all 
-            ///configurations.
-            2..1 ftype_ois,
-            /// Enables gyroscope OIS chain digital high-pass filter
-            /// Gyroscope OIS chain digital LPF1 filter bandwidth selection
-            /// FTYPE_[1:0]_OIS
-            /// 00
-            /// 01
-            /// 10
-            /// 11
-            /// Cutoff [Hz]  Phase @ 20 Hz [°]
-            /// 335.5        -6.69
-            /// 232.0        -8.78
-            /// 171.1        -11.18
-            /// 609.0        -4.91
-            0 hp_en_ois
-           },
-           0x72 CTRL3_OIS r
-           {
-                ///Accelerometer OIS channel full-scale selection
-                /// FS[1:0]_XL_OIS   XL_FS_MODE = 0                                              XL_FS_MODE = 1
-                ///                  XL UI ON                                   XL UI PD         -
-                /// 00 (default)     Full-scale selected from user interface    ±2 g             ±2 g
-                /// 01                                                          ±16 g            ±2 g
-                /// 10                                                          ±4 g             ±4 g
-                /// 11                                                          ±8 g             ±8 g
-                7..6 fs_xl_ois,
-                ///Accelerometer OIS channel bandwidth and phase
-                /// FILTER_XL_CONF_OIS[2:0] Typ. overall bandwidth [Hz]  Typ. overall phase [°]
-                /// 000                     289                          -5.72 @ 20 Hz
-                /// 001                     258                          -6.80 @ 20 Hz
-                /// 010                     120                          -13.2 @ 20 Hz
-                /// 011                     65.1                         -21.5 @ 20 Hz
-                /// 100                     33.2                         -19.1 @ 10 Hz
-                /// 101                     16.6                         -33.5 @ 10 Hz
-                /// 110                     8.30                         -26.7 @ 4 Hz
-                /// 111                     4.14                         -26.2 @ 2 Hz
-                5..3 filter_xl_conf_ois,     
-                /// Selects gyroscope OIS chain self-test. Default value: 00
-                /// Table 156 lists the output variation when the self-test is enabled and ST_OIS_CLAMPDIS = 1.
-                /// (00: Normal mode;
-                /// 01: Positive sign self-test;
-                /// 10: Normal mode;
-                /// 11: Negative sign self-test)
-                2..1 st1_ois,
-                /// Disables OIS chain clamp
-                ///  (0: All OIS chain outputs = 8000h during self-test;
-                ///  1: OIS chain self-test outputs as shown in Table 156.
-                ///  Table 156. Self-test nominal output variation
-                ///  Full scale       Output variation [dps]
-                ///  ±2000            ±400
-                ///  ±1000            ±200
-                ///  ±500             ±100
-                ///  ±250             ±50
-                ///  ±125             ±25
-                0 st_ois_clampdis
            },
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
@@ -881,8 +770,6 @@ pub struct Lsm6dso<S: SpiHandle> {
 }
 
 impl <S: SpiHandle> Lsm6dso<S> {
-    /*
-    type Error = <S::Bus as ErrorType>::Error;
     pub fn new(spi: S) -> Self {
         Self {
             spi
@@ -890,20 +777,9 @@ impl <S: SpiHandle> Lsm6dso<S> {
     }
     pub fn setup(
         &mut self
-    ) -> Result<(),Self::Error> {
-        ///TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
-        Ok(()) 
-               ///configuring SPI bus, setting verbosity/accuracy mode.
-               
-               ///KNOWN NEED TO SET: 
-               
-
-    }*/
-    
-    pub fn new(spi: S) -> Self {
-        Self {
-            spi
-        }
+    ) -> Result<(),<S::Bus as ErrorType>::Error> {
+        //TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
+        Ok(())
     }
 
     pub async fn read(&mut self) -> Result<u16, <S::Bus as ErrorType>::Error> {
