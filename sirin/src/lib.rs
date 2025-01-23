@@ -10,6 +10,7 @@ use embassy_stm32::{ gpio::{Level, Output, Speed}, spi as em_spi, time::mhz, Con
 use gpio::GpioPins;
 use rfm9x::Rfm9x;
 use w25q::W25Q;
+use lsm6dso::Lsm6dso;
 use spi::{Spi, SpiConfig, SpiConfigStruct, SpiDev, SpiInstance, WithSpiHandle};
 
 pub mod spi;
@@ -19,7 +20,7 @@ pub mod sync;
 pub mod triplet;
 
 pub struct Sirin {
-    //pub imu: Lsm6Dso,
+    pub imu: Lsm6dso<SpiDev>,
     pub radio: Rfm9x<SpiDev>,
     //pub gps: S1315F8,
     pub spawner: Spawner,
@@ -126,6 +127,10 @@ impl Sirin {
             let radio: *mut Rfm9x<SpiDev> = ptr!(radio);
             let radio_cs = Output::new(p.PC8, Level::High, Speed::High);
             radio.write(Rfm9x::new((*spi2).handle(radio_cs)));
+
+            let imu: *mut Lsm6dso<SpiDev> = ptr!(imu);
+            let imu_cs = Output::new(p.PE11, Level::High, Speed::High);
+            imu.write(Lsm6dso::new((*spi1).handle(imu_cs)));
 
             let flash: *mut W25Q<SpiDev> = ptr!(flash);
             let flash_cs = Output::new(p.PD2, Level::High, Speed::High);
