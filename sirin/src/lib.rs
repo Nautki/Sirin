@@ -9,6 +9,8 @@ use embassy_executor::{Executor, Spawner};
 use embassy_stm32::{ gpio::{Level, Output, Speed}, spi as em_spi, time::mhz, Config, Peripherals };
 use gpio::GpioPins;
 use rfm9x::Rfm9x;
+use w25q::W25Q;
+use lsm6dso::Lsm6dso;
 use spi::{Spi, SpiConfig, SpiConfigStruct, SpiDev, SpiInstance, WithSpiHandle};
 use w25q::W25Q;
 
@@ -19,8 +21,7 @@ pub mod sync;
 pub mod triplet;
 
 pub struct Sirin {
-    //pub imu: Lsm6Dso,
-    pub flash: W25Q<SpiDev>,
+    pub imu: Lsm6dso<SpiDev>,
     pub radio: Rfm9x<SpiDev>,
     //pub gps: S1315F8,
     pub spawner: Spawner,
@@ -28,8 +29,7 @@ pub struct Sirin {
     pub spi2: SpiInstance,
     pub gpio: GpioPins,
     pub baro: Bmp3<SpiDev>,
-
-    log_ptr: u32
+    pub flash: W25Q<SpiDev>
 }
 
 impl Sirin {
@@ -132,6 +132,14 @@ impl Sirin {
             let flash_ptr: *mut W25Q<SpiDev> = ptr!(sirin.flash);
             let flash_cs = Output::new(p.PD2, Level::High, Speed::High);
             flash_ptr.write(W25Q::new((*spi2).handle(flash_cs)));
+
+            let imu: *mut Lsm6dso<SpiDev> = ptr!(imu);
+            let imu_cs = Output::new(p.PE11, Level::High, Speed::High);
+            imu.write(Lsm6dso::new((*spi1).handle(imu_cs)));
+
+            let flash: *mut W25Q<SpiDev> = ptr!(flash);
+            let flash_cs = Output::new(p.PD2, Level::High, Speed::High);
+            flash.write(W25Q::new((*spi2).handle(flash_cs)));
 
             // TODO: JOIN FUTURES, AWAIT
             baro_ptr.write(baro_future.await.unwrap());
