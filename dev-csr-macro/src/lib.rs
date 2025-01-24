@@ -138,6 +138,26 @@ pub fn dev_csr(input: TokenStream) -> TokenStream {
         pub trait ReadableAddr: #addr_trait {}
         pub trait WritableAddr: #addr_trait {}
 
+        pub trait ReadableValue<T> {
+            fn from_value(value: T) -> Self;
+        }
+        pub trait WritableValue<T> {
+            fn into_value(self) -> T;
+        }
+
+        /*
+        pub struct Transmuted<T>;
+        impl <T> ReadableValue for Transmuted<T> {
+            fn from_value<T>(value: T) -> self {
+                unsafe {
+                    core::mem::transmute(value)
+                }
+            }
+        }
+        impl <T> WritableValue for Transmuted<T> {
+
+        }*/
+
         impl #addr_trait for #addr_ty {
             fn as_addr(&self) -> #addr_ty {
                 *self
@@ -298,7 +318,7 @@ fn gen_io_fn(var: &Var) -> IoFn {
                 });
 
                 write_var_out.extend(quote! {
-                    let #ident = ((#acc % (#var_end + 1)) >> #var_start);
+                    let #ident = ((#acc % (1 << (#var_end + 1))) >> #var_start);
                 });
             },
             _ => {
@@ -314,7 +334,7 @@ fn gen_io_fn(var: &Var) -> IoFn {
                 let var_start = Literal::usize_unsuffixed(var_start);
 
                 read_var_out.extend(quote! {
-                    #acc += (((#ident % (#reg_end + 1)) as #var_ty) >> #reg_start) << #var_start;
+                    #acc += (((#ident & (1 << (#reg_end + 1))) as #var_ty) >> #reg_start) << #var_start;
                 });
 
                 // Don't write -- theres other stuff in the register that we would overwrite
