@@ -168,15 +168,10 @@ dev_csr! {
                 7..4 accel_odr_mode,
                 ///Accelerometer full-scale selection
                 ///When XL_FS_MODE=0 in CTRL8_XL
-                ///00: ±2g default)
-                ///01: ±16
-                ///10: ±4
-                ///11: ±8
-                ///When XL_FS_MODE=1 in CTRL8_XL
-                ///00: ±2g default)
-                ///01: �2g
-                ///10: ±4
-                ///11: ±8
+                ///00: ±4g (default)
+                ///01: ±32
+                ///10: ±8
+                ///11: ±16
                 3..2 accel_fs, 
                 ///Accelerometer high-resolution selection
                 ///0: output from first stage digital filtering selected (default)
@@ -764,7 +759,6 @@ dev_csr! {
     }
 }
 
-
 pub struct Lsm6dso<S: SpiHandle> {
     spi: S
 }
@@ -787,49 +781,70 @@ impl <S: SpiHandle> Lsm6dso<S> {
         Ok(accelx)
     }
 
-    pub async fn raw_accel(&mut self) -> Result<(i16, i16, i16), <S::Bus as ErrorType>::Error> {
-        Ok(unsafe {
-            let accel_x: i16 = mem::transmute(self.accel_x().await?);
-            let accel_y: i16 = mem::transmute(self.accel_y().await?);
-            let accel_z: i16 = mem::transmute(self.accel_z().await?);
+     pub async fn raw_accel(&mut self) -> Result<(i16, i16, i16), <S::Bus as ErrorType>::Error> {
+          Ok(unsafe {
+               let accel_x: i16 = mem::transmute(self.accel_x().await?);
+               let accel_y: i16 = mem::transmute(self.accel_y().await?);
+               let accel_z: i16 = mem::transmute(self.accel_z().await?);
 
-            (accel_x, accel_y, accel_z)
-        })
-    }
+               (accel_x, accel_y, accel_z)
+          })
+     }
 
-    pub async fn raw_gyro(&mut self) -> Result<(i16, i16, i16), <S::Bus as ErrorType>::Error> {
-        Ok(unsafe {
-            let gyro_pitch: i16 = mem::transmute(self.gyro_pitch_rate().await?);
-            let gyro_roll: i16 = mem::transmute(self.gyro_roll_rate().await?);
-            let gyro_yaw: i16 = mem::transmute(self.gyro_yaw_rate().await?);
+     pub async fn raw_gyro(&mut self) -> Result<(i16, i16, i16), <S::Bus as ErrorType>::Error> {
+          Ok(unsafe {
+               let gyro_pitch: i16 = mem::transmute(self.gyro_pitch_rate().await?);
+               let gyro_roll: i16 = mem::transmute(self.gyro_roll_rate().await?);
+               let gyro_yaw: i16 = mem::transmute(self.gyro_yaw_rate().await?);
 
-            (gyro_pitch, gyro_roll, gyro_yaw)
-        })
-    }
+               (gyro_pitch, gyro_roll, gyro_yaw)
+          })
+     }
 
-    pub async fn accel(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
-        let (raw_x, raw_y, raw_z) = self.raw_accel().await?;
-        //sensitivity mode TODO: read from chip
-        let fs = 32; 
-        let scalar: i32 = 122 * fs/4;
-        let accel_x: i32 = scalar * (raw_x as i32);
-        let accel_y: i32 = scalar * (raw_y as i32);
-        let accel_z: i32 = scalar * (raw_z as i32);
+     pub async fn accel_sensitivity(&mut self) -> Result<i32, <S::Bus as ErrorType>::Error> {
+          Ok(
+          match self.accel_fs().await? {
+               0 => 4,
+               1 => 32,
+               2 => 8,
+               3 => 16,
+               _ => unreachable!()
+          })
+     }
+     pub async fn gyro_sensitivity(&mut self) -> Result<i32, <S::Bus as ErrorType>::Error> {
+          Ok(
+          match self.gyro_fs_select().await? {
+               0 => 250,
+               1 => 500,
+               2 => 1000,
+               3 => 2000,
+               _ => unreachable!()
+          })
+     }
 
-        Ok((accel_x, accel_y, accel_z))
-    }
+     pub async fn accel(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
+         let (raw_x, raw_y, raw_z) = self.raw_accel().await?;
+          //sensitivity mode TODO: read from chip
+          let fs = self.accel_sensitivity().await?;
+          let scalar: i32 = 122 * fs/4;
+          let accel_x: i32 = scalar * (raw_x as i32);
+          let accel_y: i32 = scalar * (raw_y as i32);
+          let accel_z: i32 = scalar * (raw_z as i32);
 
-    pub async fn gyro(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
-        let (raw_pitch, raw_roll, raw_yaw) = self.raw_gyro().await?;
-        //sensitivity mode TODO: read from chip
-        let fs = 125; 
-        let scalar: i32 = 4375 * fs/125;
-        let gyro_pitch: i32 = scalar * (raw_pitch as i32);
-        let gyro_roll: i32 = scalar * (raw_roll as i32);
-        let gyro_yaw: i32 = scalar * (raw_yaw as i32);
+          Ok((accel_x, accel_y, accel_z))
+     }
 
-        Ok((gyro_pitch, gyro_roll, gyro_yaw))
-    }
+     pub async fn gyro(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
+          let (raw_pitch, raw_roll, raw_yaw) = self.raw_gyro().await?;
+          //sensitivity mode TODO: read from chip
+          let fs = self.gyro_sensitivity().await?;
+          let scalar: i32 = 4375 * fs/125;
+          let gyro_pitch: i32 = scalar * (raw_pitch as i32);
+          let gyro_roll: i32 = scalar * (raw_roll as i32);
+          let gyro_yaw: i32 = scalar * (raw_yaw as i32);
+
+          Ok((gyro_pitch, gyro_roll, gyro_yaw))
+     }
     
 }
 
