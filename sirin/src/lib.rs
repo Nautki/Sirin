@@ -10,6 +10,7 @@ use embassy_stm32::{ gpio::{Level, Output, Speed}, spi as em_spi, time::mhz, Con
 use gpio::GpioPins;
 use rfm9x::Rfm9x;
 use spi::{Spi, SpiConfig, SpiConfigStruct, SpiDev, SpiInstance, WithSpiHandle};
+use w25q::W25Q;
 
 pub mod spi;
 pub mod delay;
@@ -19,7 +20,7 @@ pub mod triplet;
 
 pub struct Sirin {
     //pub imu: Lsm6Dso,
-    //pub flash: W25Q,
+    pub flash: W25Q<SpiDev>,
     pub radio: Rfm9x<SpiDev>,
     //pub gps: S1315F8,
     pub spawner: Spawner,
@@ -27,6 +28,8 @@ pub struct Sirin {
     pub spi2: SpiInstance,
     pub gpio: GpioPins,
     pub baro: Bmp3<SpiDev>,
+
+    log_ptr: u32
 }
 
 impl Sirin {
@@ -38,12 +41,12 @@ impl Sirin {
     ) -> &'static mut Sirin {
         unsafe {
             macro_rules! ptr {
-                ($field: ident) => {
+                (sirin . $field: ident) => {
                     addr_of_mut!((*sirin.as_mut_ptr()).$field)
                 };
             }
 
-            *ptr!(spawner) = spawner;
+            *ptr!(sirin.spawner) = spawner;
 
             let mut config = Config::default();
             {
@@ -71,7 +74,7 @@ impl Sirin {
             let mut spi_config = em_spi::Config::default();
             spi_config.frequency = mhz(1);
 
-            let spi1: *mut SpiInstance = ptr!(spi1);
+            let spi1: *mut SpiInstance = ptr!(sirin.spi1);
             spi1.write(spi::SpiInstance::new(SpiConfigStruct {
                 spi: p.SPI1,
                 sck: p.PA5,
@@ -82,7 +85,7 @@ impl Sirin {
                 config: spi_config
             }));
 
-            let spi2: *mut SpiInstance = ptr!(spi2);
+            let spi2: *mut SpiInstance = ptr!(sirin.spi2);
             spi2.write(spi::SpiInstance::new(SpiConfigStruct {
                 spi: p.SPI2,
                 sck: p.PB13,
@@ -93,7 +96,7 @@ impl Sirin {
                 config: spi_config
             }));
 
-            let gpio: *mut GpioPins = ptr!(gpio);
+            let gpio: *mut GpioPins = ptr!(sirin.gpio);
             gpio.write(GpioPins {
                 p1: p.PA4,
                 p2: p.PC4,
@@ -118,19 +121,29 @@ impl Sirin {
             });
 
             
-            let baro: *mut Bmp3<SpiDev> = ptr!(baro);
+            let baro_ptr: *mut Bmp3<SpiDev> = ptr!(sirin.baro);
             let baro_cs = Output::new(p.PA2, Level::High, Speed::High);
             let baro_future = Bmp3::new((*spi1).handle(baro_cs));
 
-            let radio: *mut Rfm9x<SpiDev> = ptr!(radio);
+            let radio_ptr: *mut Rfm9x<SpiDev> = ptr!(sirin.radio);
             let radio_cs = Output::new(p.PC8, Level::High, Speed::High);
-            radio.write(Rfm9x::new((*spi2).handle(radio_cs)));
+            radio_ptr.write(Rfm9x::new((*spi2).handle(radio_cs)));
+
+            let flash_ptr: *mut W25Q<SpiDev> = ptr!(sirin.flash);
+            let flash_cs = Output::new(p.PD2, Level::High, Speed::High);
+            flash_ptr.write(W25Q::new((*spi2).handle(flash_cs)));
 
             // TODO: JOIN FUTURES, AWAIT
-            baro.write(baro_future.await.unwrap());
+            baro_ptr.write(baro_future.await.unwrap());
+            (*radio_ptr).use_high_power().await.unwrap();
+            (*flash_ptr).chip_erase().await.unwrap();
 
             let sirin: &'static mut _ = sirin.assume_init_mut();
             sirin
         }
+    }
+
+    pub async fn log(&mut self, msg: &str) {
+        
     }
 }

@@ -1,6 +1,4 @@
-use embassy_stm32::{flash::Blocking, gpio::Output, mode::Async, spi::{ self as em_spi, Instance as EmSpiInstance, MisoPin, Mode, MosiPin, RxDma, SckPin, Spi as EmSpi, TxDma }, Peripheral};
-use embedded_hal_async::spi::SpiBus;
-use sirin_macros::SpiError;
+use embassy_stm32::{gpio::Output, mode::Async, spi::{ self as em_spi, Instance as EmSpiInstance, MisoPin, MosiPin, RxDma, SckPin, Spi as EmSpi, TxDma }};
 use spi_handle::SpiHandle;
 
 use crate::sync::Mutex;

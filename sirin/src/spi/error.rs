@@ -1,11 +1,5 @@
-use core::future::Future;
-use core::ops::{Deref, DerefMut};
-
 use embassy_stm32::spi::{self as em_spi};
-
-use embedded_hal_async::spi::{SpiBus, ErrorType};
 use embedded_hal_async::spi as hal_spi;
-use sirin_macros::SpiError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpiError {
