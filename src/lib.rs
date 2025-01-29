@@ -769,11 +769,15 @@ impl <S: SpiHandle> Lsm6dso<S> {
             spi
         }
     }
-    pub fn setup(
+    pub async fn setup(
         &mut self
     ) -> Result<(),<S::Bus as ErrorType>::Error> {
-        //TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
-        Ok(())
+          //TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
+          let accel_mode = self.read_reg(RegCtrl1Xl).await?;
+          self.write_reg(RegCtrl1Xl, 0b10101100 as u8).await?;
+          let gyro_mode = self.read_reg(RegCtrl2G).await?;
+          // self.write_reg(RegCtrl2G, gyro_mode | 0b01101100).await?;
+          Ok(())    
     }
 
     pub async fn read(&mut self) -> Result<u16, <S::Bus as ErrorType>::Error> {
@@ -859,9 +863,9 @@ impl <S: SpiHandle> ReadLsm6dso for Lsm6dso<S> {
     ) -> Result<(), Self::Error> {
         let mut bus = self.spi.select().await;
 
-        /// set rw bit
+        // set rw bit
         
-        /// write = 1, read = 0
+        // write = 1, read = 0
         
         let addr: u8 = addr.as_addr() | 0b1000_0000;
         
