@@ -3,7 +3,6 @@
 use core::{fmt::Debug, mem};
 
 use dev_csr::dev_csr;
-use embassy_futures::yield_now;
 use embedded_hal::spi::{ ErrorKind as SpiError, ErrorType};
 use embedded_hal_async::spi::SpiBus;
 use spi_handle::SpiHandle;
@@ -774,7 +773,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
     ) -> Result<(),<S::Bus as ErrorType>::Error> {
           //TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
           let accel_mode = self.read_reg(RegCtrl1Xl).await?;
-          self.write_reg(RegCtrl1Xl, 0b10101100 as u8).await?;
+          self.write_reg(RegCtrl1Xl, 0b1010_11_00 as u8).await?;
           let gyro_mode = self.read_reg(RegCtrl2G).await?;
           // self.write_reg(RegCtrl2G, gyro_mode | 0b01101100).await?;
           Ok(())    
@@ -830,7 +829,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
          let (raw_x, raw_y, raw_z) = self.raw_accel().await?;
           //sensitivity mode TODO: read from chip
           let fs = self.accel_sensitivity().await?;
-          let scalar: i32 = 122 * fs/4;
+          let scalar: i32 = 122 * 4;//* fs/4;
           let accel_x: i32 = scalar * (raw_x as i32);
           let accel_y: i32 = scalar * (raw_y as i32);
           let accel_z: i32 = scalar * (raw_z as i32);
