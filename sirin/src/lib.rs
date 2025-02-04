@@ -12,7 +12,6 @@ use rfm9x::Rfm9x;
 use w25q::W25Q;
 use lsm6dso::Lsm6dso;
 use spi::{Spi, SpiConfig, SpiConfigStruct, SpiDev, SpiInstance, WithSpiHandle};
-use w25q::W25Q;
 
 pub mod spi;
 pub mod delay;
@@ -133,13 +132,9 @@ impl Sirin {
             let flash_cs = Output::new(p.PD2, Level::High, Speed::High);
             flash_ptr.write(W25Q::new((*spi2).handle(flash_cs)));
 
-            let imu: *mut Lsm6dso<SpiDev> = ptr!(imu);
+            let imu: *mut Lsm6dso<SpiDev> = ptr!(sirin.imu);
             let imu_cs = Output::new(p.PE11, Level::High, Speed::High);
             imu.write(Lsm6dso::new((*spi1).handle(imu_cs)));
-
-            let flash: *mut W25Q<SpiDev> = ptr!(flash);
-            let flash_cs = Output::new(p.PD2, Level::High, Speed::High);
-            flash.write(W25Q::new((*spi2).handle(flash_cs)));
 
             // TODO: JOIN FUTURES, AWAIT
             baro_ptr.write(baro_future.await.unwrap());
