@@ -1,3 +1,0 @@
-cargo:rustc-link-search=D:\coding\github\lsm6dso\target\debug\build\defmt-5d67d16706795f0e\out
-cargo:rustc-check-cfg=cfg(c_variadic)
-cargo:rustc-check-cfg=cfg(no_cas)
