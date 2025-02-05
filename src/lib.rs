@@ -389,6 +389,13 @@ impl <S: SpiHandle> Rfm9x<S> {
 
     /*
     pub async fn calibrate(&mut self) -> Result<(), Error> {
+        self.set_mode(Mode::Sleep).await?;
+        
+        
+        // sets frequency to 434 MHz
+        self.set_frf_23_16(0x6c).await?;
+        self.set_frf_15_8(0x80).await?;
+        self.set_frf_7_0(0x00).await?;
 
     } */
 
@@ -436,6 +443,7 @@ impl <S: SpiHandle> Rfm9x<S> {
         self.set_payload_length(0).await?;
 
 
+        self.set_payload_length(len).await?;
         //self.write_contiguous_regs(RegFifo, &[0x80]).await?;
         //self.write_contiguous_regs(RegFifo, data).await?;
         for byte in data {
