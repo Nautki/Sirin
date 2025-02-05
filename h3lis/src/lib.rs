@@ -1,3 +1,4 @@
+#![no_std]
 use dev_csr::dev_csr;
 
 dev_csr!{

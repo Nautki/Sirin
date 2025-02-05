@@ -1,6 +1,14 @@
 [workspace]
 members = [
     "sirin",
-    "sirin-macros"
+    "sirin-macros",
+    "bmp3",
+    "dev-csr",
+    "dev-csr-macro",
+    "h3lis",
+    "lsm6dso",
+    "rfm9x",
+    "spi-handle",
+    "w25q"
 ]
 resolver = "2"
