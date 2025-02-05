@@ -1,7 +1,7 @@
 #![no_std]
 
 use core::{borrow::Borrow, future::Future, marker::PhantomData, ops::{Deref, DerefMut}};
-use embedded_hal_async::spi::{ErrorKind, ErrorType, SpiBus};
+use embedded_hal_async::spi::{Error, ErrorKind, ErrorType, SpiBus};
 
 pub trait SpiHandle<W: 'static + Copy = u8> {
     /// The type of the actual SPI bus we're using.
@@ -107,7 +107,7 @@ where D::Target: SpiBus;
 
 impl <D: DerefMut> ErrorType for DerefSpiBus<D>
 where D::Target: SpiBus {
-    type Error = <D::Target as ErrorType>::Error;
+    type Error = ErrorKind;//<D::Target as ErrorType>::Error;
 }
 
 impl <D: DerefMut> Deref for DerefSpiBus<D>
@@ -131,23 +131,23 @@ type W = u8;
 impl <D: DerefMut> SpiBus for DerefSpiBus<D>
 where D::Target: SpiBus {
     async fn read(&mut self, words: &mut [W]) -> Result<(), Self::Error> {
-        (**self).read(words).await
+        (**self).read(words).await.map_err(|e| e.kind())
     }
 
     async fn write(&mut self, words: &[W]) -> Result<(), Self::Error> {
-        (**self).write(words).await
+        (**self).write(words).await.map_err(|e| e.kind())
     }
 
     async fn transfer(&mut self, read: &mut [W], write: &[W]) -> Result<(), Self::Error> {
-        (**self).transfer(read, write).await
+        (**self).transfer(read, write).await.map_err(|e| e.kind())
     }
 
     async fn transfer_in_place(&mut self, words: &mut [W]) -> Result<(), Self::Error> {
-        (**self).transfer_in_place(words).await
+        (**self).transfer_in_place(words).await.map_err(|e| e.kind())
     }
 
     async fn flush(&mut self) -> Result<(), Self::Error> {
-        (**self).flush().await
+        (**self).flush().await.map_err(|e| e.kind())
     }
 }
 
