@@ -1,0 +1,13 @@
+[package]
+name = "bmp3"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+dev-csr = { version = "0.1.0", path = "../dev-csr" }
+spi-handle = { version = "0.1.0", path = "../spi-handle" }
+uunit = { version = "0.1.0", path = "../uunit" }
