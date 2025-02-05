@@ -2,12 +2,13 @@
 
 use core::{fmt::Debug, mem};
 
+use defmt::info;
 use dev_csr::dev_csr;
 use embassy_futures::yield_now;
 use embedded_hal::spi::{ ErrorKind as SpiError, ErrorType};
 use embedded_hal_async::spi::SpiBus;
 use spi_handle::SpiHandle;
-
+use uunit::{Milliamperes, Milliamps, WithUnits};
 
 dev_csr! {
     dev Rfm9x{
@@ -43,10 +44,10 @@ dev_csr! {
                 //?rwt?
             },
             /// MSB or FR carrier frequency
-            0x06 FR_MSB rw frf_23_16[0..7],
-            0x07 FR_MID rw frf_15_8[0..7],
+            0x06 FR_MSB rw frf[16..23],
+            0x07 FR_MID rw frf[8..15],
             /// LSB or RF carrier frequency
-            0x08 FR_LSB rw frf_7_0[0..7],
+            0x08 FR_LSB rw frf[0..7],
             0x09 PA_CONFIG rw {
                 /// Selects PA output pin
                 /// 0: RFO pin. Output power is limited to +14dBm
@@ -104,13 +105,13 @@ dev_csr! {
                 5..7 lna_gain
             },
             ///SPI interface address pointer in FIFO data buffer.
-            0x0D FIFO_ADDR_PTR rw fifo_addr_ptr[0..7],
+            0x0D FIFO_ADDR_PTR rw fifo_addr_ptr,
             ///write base address in FIFO data buffer for TX modulator
-            0x0E FIFO_TX_BASE_ADDR rw fifo_tx_base_addr[0..7],
+            0x0E FIFO_TX_BASE_ADDR rw fifo_tx_base_addr,
             ///read base address in FIFO data buffer for RX demodulator
-            0x0F FIFO_RX_BASE_ADDR rw fifo_rx_base_addr[0..7],
+            0x0F FIFO_RX_BASE_ADDR rw fifo_rx_base_addr,
             ///Start address (in data buffer) of last packet received
-            0x10 FIFO_RX_CURRENT_ADDR r fifo_rx_current_addr[0..7],
+            0x10 FIFO_RX_CURRENT_ADDR r fifo_rx_current_addr,
             0x11 IRQ_FLAGS_MASK rw {
                 ///Cad Detected Interrupt Mask: setting this bit masks the corresponding IRQ in RegIrqFlags
                 0 cad_detected_mask,
@@ -129,7 +130,7 @@ dev_csr! {
                 ///Timeout interrupt mask: setting this bit masks the corresponding IRQ in RegIrqFlags
                 7 rx_timeout_mask
             },
-            0x12 IRQ_FLAG rw {
+            0x12 IRQ_FLAGS rw {
                 /// Timeout interrupt: writing a 1 clears the IRQ
                 7 rx_time_out,
                 /// Packet reception complete interrupt: writing a 1 clears the IRQ
@@ -148,7 +149,7 @@ dev_csr! {
                 0 cad_detected,
             },
             /// Number of payload bytes of latest packet received
-            0x13 RX_NB_BYTES r fifo_rx_nb_bytes[0..7],
+            0x13 RX_NB_BYTES r fifo_rx_nb_bytes,
             /// Number of valid headers received since last transition intoRx mode, MSB(15:8). Header and packet counters are reseted in Sleep mode
             0x14 RX_HEADER_CNT_VALUE_MSB r valid_header_cnt[8..15],
             /// Number of valid headers received since last transition intoRx mode, LSB(7:0). Header and packet counters are reseted in Sleep mode.
@@ -172,17 +173,17 @@ dev_csr! {
                 5..7 rx_coding_rate,
             },
             /// Estimation of SNR on last packet received.In two’s compliment format multiplied by 4. SNR[dB] = PacketSnr[twos complement]/4
-            0x19 PKT_SNR_VALUE r packet_snr[0..7],
+            0x19 PKT_SNR_VALUE r packet_snr,
             /// RSSI of the latest packet received (dBm): 
             ///RSSI[dBm] = -157 + Rssi (using HF output port, SNR >=0)
             ///or RSSI[dBm] = -164 + Rssi (using LF output port, SNR >= 0)
             /// (see section 5.5.5 for details)
-            0x1A PKT_RSSI_VALUE r packet_rssi[0..7],
+            0x1A PKT_RSSI_VALUE r packet_rssi,
             /// Current RSSI value (dBm)
             /// RSSI[dBm] = -157 + Rssi (using HF outputport)
             /// or RSSI[dBm] = -164 + Rssi (using LF outputport)
             /// (see section 5.5.5 for details*/
-            0x1B RSSI_VALUE r rssi[0..7],
+            0x1B RSSI_VALUE r rssi,
             0x1C HOP_CHANNEL r {
                 /// Current value of frequency hopping channel inuse.
                 0..5 fhss_present_channel,
@@ -257,11 +258,11 @@ dev_csr! {
             /// Preamble Length LSB
             0x21 PREAMBLE_LSB rw preamble_length[0..7],
             /// Payload length in bytes. The register needs to be set in implicit header mode for the expected packet length. A 0 value is not permitted
-            0x22 PAYLOAD_LENGTH rw payload_length[0..7],
+            0x22 PAYLOAD_LENGTH rw payload_length,
             /// Maximum payload length; if header payload length exceeds value a header CRC error is generated. Allows filtering of packet with a bad size.
-            0x23 MAX_PAYLOAD_LENGTH rw payload_max_length[0..7],
+            0x23 MAX_PAYLOAD_LENGTH rw payload_max_length,
             /// Symbol periods between frequency hops. (0 = disabled). 1st hop always happen after the 1st header symbol
-            0x24 HOP_PERIOD rw frew_hopping_period[0..7],
+            0x24 HOP_PERIOD rw frew_hopping_period,
             /// Current value of RX databuffer pointer (address of last byte written by Lora receiver)
             0x25 FIFO_RX_BYTE_ADDR r fifo_rx_byte_addr_ptr,
             0x26 MODEM_CONFIG_3 rw {
@@ -291,7 +292,9 @@ dev_csr! {
 
             /// Version code of the chip. Bits 7-4 give the full revision number;
             /// bits 3-0 give the metal mask revision number.
-            0x42 VERSION r version
+            0x42 VERSION r version,
+
+            0x4D PA_DAC rw pa_dac
         }
     }
 }
@@ -359,6 +362,18 @@ impl <S: SpiHandle> Rfm9x<S> {
         }
     }
 
+    pub async fn init(&mut self) -> Result<(), Error> {
+        //let config1 = self.read_reg(RegModemConfig1).await?;
+        self.set_mode(Mode::Sleep).await?;
+        self.set_fifo_tx_base_addr(0).await?;
+        self.set_fifo_rx_base_addr(0).await?;
+        let lna = self.read_reg(RegLna).await?;
+        self.write_reg(RegLna, lna | 0x03).await?;
+        self.write_reg(RegModemConfig3, 0x04).await?;
+        self.set_mode(Mode::Stdby).await?;
+        Ok(())
+    }
+
     pub async fn mode(&mut self) -> Result<Mode, Error> {
         let mode: Mode = unsafe {
             mem::transmute(self.read_reg(RegOpMode).await? & 0b0000_0111)
@@ -368,27 +383,68 @@ impl <S: SpiHandle> Rfm9x<S> {
     }
 
     pub async fn set_mode(&mut self, mode: Mode) -> Result<(), Error> {
-        self.write_reg(RegOpMode, 0b1100_0000 | mode as u8).await?;
+        self.write_reg(RegOpMode, 0b1000_0000 | mode as u8).await?;
         Ok(())
     }
 
+    /*
     pub async fn calibrate(&mut self) -> Result<(), Error> {
 
+    } */
+
+    pub async fn set_ocp(&mut self, current_limit: Milliamps<u8>) -> Result<(), Error> {
+        let current_limit = current_limit.value;
+
+        let trim = if current_limit < 45 {
+            0
+        } else if current_limit < 130 {
+            (current_limit - 45)/5
+        } else if current_limit < 240 {
+            (current_limit + 30)/10
+        } else {
+            27
+        };
+
+        self.write_reg(RegOcp, 0b10_0000 + trim).await?;
+
+        Ok(())
+    }
+
+    pub async fn use_high_power(&mut self) -> Result<(), Error> {
+        self.set_pa_dac(0x87).await?;
+        self.set_ocp(140u8.with_units()).await?;
+        self.write_reg(RegPaConfig, 0b1_100_1111).await?;
+        Ok(())
+    }
+
+    pub async fn use_explicit_headers(&mut self) -> Result<(), Error> {
+        //let config1 = self.read_reg(RegModemConfig1).await?;
+        self.write_reg(RegModemConfig1, 0x72).await?;
+        Ok(())
     }
 
     pub async fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
         let len: u8 = data.len().try_into().unwrap();
 
         self.set_mode(Mode::Stdby).await?;
-        
+        self.use_explicit_headers().await?;
+
+        self.write_reg(RegIrqFlags, 0).await?;
         // Write FIFO
-        self.set_fifo_tx_base_addr(0x00).await?;
         self.set_fifo_addr_ptr(0x00).await?;
+        //self.set_fifo_tx_base_addr(0x00).await?;
+        self.set_payload_length(0).await?;
+
 
         //self.write_contiguous_regs(RegFifo, &[0x80]).await?;
-        self.write_contiguous_regs(RegFifo, data).await?;
+        //self.write_contiguous_regs(RegFifo, data).await?;
+        for byte in data {
+            self.write_reg(RegFifo, *byte).await?;
+        }
 
-        self.set_payload_length(len).await?;
+        //self.set_payload_length(26).await?;
+        self.write_reg(RegPayloadLength, len).await?;
+        info!("Len: {}", len);
 
         self.set_mode(Mode::Tx).await?;
 
@@ -403,9 +459,9 @@ impl <S: SpiHandle> Rfm9x<S> {
         
         self.set_mode(Mode::RxSingle).await?;
         
-        while !self.rx_done().await? {
+        /*while !self.rx_done().await? {
             yield_now().await;
-        }
+        }*/
 
         if self.payload_crc_err().await? {
             self.set_mode(Mode::Stdby).await?;
