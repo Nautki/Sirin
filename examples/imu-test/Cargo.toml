@@ -2,7 +2,7 @@
 
 [package]
 edition = "2021"
-name = "bare"
+name = "imu-test"
 version = "0.1.0"
 
 [dependencies]
@@ -40,10 +40,11 @@ chrono = { version = "^0.4", default-features = false }
 sirin = { version = "0.1.0", path = "../../sirin" }
 bmp3 = { version = "0.1.0", path = "../../bmp3" }
 rfm9x = { version = "0.1.0", path = "../../rfm9x", features = ['defmt'] }
+lsm6dso = { version = "0.1.0", path = "../../lsm6dso" }
 #panic-halt = "0.2.0"
 
 [[bin]]
-name = "bare"
+name = "imu-test"
 test = false
 bench = false
 

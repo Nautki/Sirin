@@ -775,7 +775,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
           let accel_mode = self.read_reg(RegCtrl1Xl).await?;
           self.write_reg(RegCtrl1Xl, 0b1010_11_00 as u8).await?;
           let gyro_mode = self.read_reg(RegCtrl2G).await?;
-          // self.write_reg(RegCtrl2G, gyro_mode | 0b01101100).await?;
+          self.write_reg(RegCtrl2G, 0b1010_11_00).await?;
           Ok(())    
     }
 
@@ -814,6 +814,22 @@ impl <S: SpiHandle> Lsm6dso<S> {
                _ => unreachable!()
           })
      }
+     /// 0 = 4g, 1 = 8g, 2 = 16g, 3 = 32g
+     pub async fn set_accel_sensitivity(&mut self, new_fs: u8) -> Result<(), <S::Bus as ErrorType>::Error> {
+          let accel_mode = self.read_reg(RegCtrl1Xl).await?;
+          let mask = 0b1111_00_11;
+
+          let bits = match new_fs {
+               0 => 0b0000_00_00,
+               1 => 0b0000_10_00,
+               2 => 0b0000_11_00,
+               3 => 0b0000_01_00,
+               _ => 0b0000_00_00
+          };
+
+          self.write_reg(RegCtrl1Xl, accel_mode & mask | bits as u8).await?;
+          Ok(())
+     }
      pub async fn gyro_sensitivity(&mut self) -> Result<i32, <S::Bus as ErrorType>::Error> {
           Ok(
           match self.gyro_fs_select().await? {
@@ -824,12 +840,17 @@ impl <S: SpiHandle> Lsm6dso<S> {
                _ => unreachable!()
           })
      }
+     
+     pub async fn test_fs(&mut self) -> Result<u8, <S::Bus as ErrorType>::Error> {
+          Ok(self.accel_fs().await?)
+     }
 
+     /// returns a tuple with units of ug (10^-6)
      pub async fn accel(&mut self) -> Result<(i32, i32, i32), <S::Bus as ErrorType>::Error> {
          let (raw_x, raw_y, raw_z) = self.raw_accel().await?;
           //sensitivity mode TODO: read from chip
           let fs = self.accel_sensitivity().await?;
-          let scalar: i32 = 122 * 4;//* fs/4;
+          let scalar: i32 = 122 * fs;//* fs/4;
           let accel_x: i32 = scalar * (raw_x as i32);
           let accel_y: i32 = scalar * (raw_y as i32);
           let accel_z: i32 = scalar * (raw_z as i32);
