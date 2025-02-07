@@ -332,7 +332,7 @@ fn gen_io_fn(var: &Var) -> IoFn {
                 let reg_start = Literal::usize_unsuffixed(reg_start);
                 let reg_end = Literal::usize_unsuffixed(reg_end);
                 let var_start = Literal::usize_unsuffixed(var_start);
-
+                
                 read_var_out.extend(quote! {
                     #acc += (((#ident & (1 << (#reg_end + 1))) as #var_ty) >> #reg_start) << #var_start;
                 });
