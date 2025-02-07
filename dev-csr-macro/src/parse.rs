@@ -227,7 +227,13 @@ impl Parse for BitRange {
         if input.peek2(Token![..]) {
             let first = input.parse::<LitInt>()?;
             input.parse::<Token![..]>()?;
-            Ok(BitRange::Range(first.base10_parse()?, input.parse::<LitInt>()?.base10_parse()?))
+            let a = first.base10_parse()?;
+            let b = input.parse::<LitInt>()?.base10_parse()?;
+            if a < b {
+                Ok(BitRange::Range(a, b))
+            } else {
+                Err(syn::Error::new(first.span(), "b must be larger than a in a..b"))
+            }
         } else {
             Ok(BitRange::Single(input.parse::<LitInt>()?.base10_parse()?))
         }
