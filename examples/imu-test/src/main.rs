@@ -45,7 +45,7 @@ bind_interrupts!(struct Irqs {
 
 async fn main_task(sirin: &'static mut Sirin) {
     sirin.imu.setup().await.unwrap();
-    sirin.imu.set_accel_sensitivity(3).await.unwrap();
+    println!("{}", sirin.imu.set_accel_sensitivity(1).await.unwrap());
     println!("{}", sirin.imu.read_reg(0x10).await.unwrap());
     
     println!("{}", sirin.imu.accel_sensitivity().await.unwrap());

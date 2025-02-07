@@ -772,16 +772,11 @@ impl <S: SpiHandle> Lsm6dso<S> {
         &mut self
     ) -> Result<(),<S::Bus as ErrorType>::Error> {
           //TODO: Use this function to perform initial setup of the IMU. Example: opening register access,
-          let accel_mode = self.read_reg(RegCtrl1Xl).await?;
+          // let accel_mode = self.read_reg(RegCtrl1Xl).await?;
           self.write_reg(RegCtrl1Xl, 0b1010_11_00 as u8).await?;
-          let gyro_mode = self.read_reg(RegCtrl2G).await?;
+          // let gyro_mode = self.read_reg(RegCtrl2G).await?;
           self.write_reg(RegCtrl2G, 0b1010_11_00).await?;
           Ok(())    
-    }
-
-    pub async fn read(&mut self) -> Result<u16, <S::Bus as ErrorType>::Error> {
-        let accelx: u16 = self.accel_x().await?;
-        Ok(accelx)
     }
 
      pub async fn raw_accel(&mut self) -> Result<(i16, i16, i16), <S::Bus as ErrorType>::Error> {
@@ -815,7 +810,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
           })
      }
      /// 0 = 4g, 1 = 8g, 2 = 16g, 3 = 32g
-     pub async fn set_accel_sensitivity(&mut self, new_fs: u8) -> Result<(), <S::Bus as ErrorType>::Error> {
+     pub async fn set_accel_sensitivity(&mut self, new_fs: u8) -> Result<u8, <S::Bus as ErrorType>::Error> {
           let accel_mode = self.read_reg(RegCtrl1Xl).await?;
           let mask = 0b1111_00_11;
 
@@ -828,7 +823,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
           };
 
           self.write_reg(RegCtrl1Xl, accel_mode & mask | bits as u8).await?;
-          Ok(())
+          Ok(bits >> 2)
      }
      pub async fn gyro_sensitivity(&mut self) -> Result<i32, <S::Bus as ErrorType>::Error> {
           Ok(
