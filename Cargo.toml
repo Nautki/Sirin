@@ -9,6 +9,7 @@ members = [
     "lsm6dso",
     "rfm9x",
     "spi-handle",
-    "w25q"
+    "w25q",
+    "examples/bare"
 ]
 resolver = "2"
