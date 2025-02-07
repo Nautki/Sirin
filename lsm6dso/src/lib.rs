@@ -38,23 +38,23 @@ dev_csr! {
                 ///Batch ODR nCHANGE sensor in FIFO
                 4 fifo_batch_odrchg, 
                 ///Configures the rate of written uncompressed data (default 0). 0: do not force uncompressed data writing, 1: uncompressed data every 8 batch, 2: every 16 batch, 3: every 32 batch
-                2..1 fifo_uncompr_rate, 
+                1..2 fifo_uncompr_rate, 
                 ///Enable FSM-triggered batching of channel 2 when available, 0 disabled, 1 enabled, default 0
                 0 fifo_wtm[0], 
            },
            0x09 FIFO_CTRL3 rw
            {
                 ///Select batch data rate for gyro data. 0000: gyro not batched, 0001: 1.875Hz, otherwise rate = 1.875*2^{input}, max input 1100
-                7..4 fifo_gyro_bdr, 
+                4..7 fifo_gyro_bdr, 
                 ///Select batch data rate for accelerometer. Same as gyro.
-                3..0 fifo_accel_bdr 
+                0..3 fifo_accel_bdr 
            },
            0x0A FIFO_CTRL4 rw
            {
                 ///Select decimation for timestamp batching. 00: timestamp not batched. 01: write rate = max(fifo_accel_bdr, fifo_gyro_bdr). 10: write rate = max(fifo_accel_bdr, fifo_gyro_bdr)/8.  11: write rate = max(fifo_accel_bdr, fifo_gyro_bdr)/32.
-                7..6 fifo_ts_decim, 
+                6..7 fifo_ts_decim, 
                 ///Select batch data rate for temperature. 00: not batched. 01: 1.875Hz. 10: 15Hz. 11: 60Hz.
-                5..4 fifo_temp_bdr, 
+                4..5 fifo_temp_bdr, 
                 ///Mode selection.
                 ///000: FIFO disabled.
                 ///001: FIFO mode: stop collection when FIFO is full.
@@ -69,7 +69,7 @@ dev_csr! {
                 ///old ones.
                 ///111: bypass-to-FIFO mode: FIFO disabled until trigger is
                 ///deasserted, then FIFO mode.
-                2..0 fifo_mode 
+                0..2 fifo_mode 
            },
            0x0B COUNTER_BDR_REG1 rw
            {
@@ -81,12 +81,12 @@ dev_csr! {
                 ///00: accel batch event.
                 ///01: gyro batch event.
                 ///10-11: gyro EIS batch event.
-                6..5 trig_ctr_bdr,
+                5..6 trig_ctr_bdr,
                 ///Sets the threshold for the internal
                 ///counter of batch events. When this counter reaches the
                 ///threshold, the counter is reset and counter_bdr_reached is
                 ///set to 1.
-                2..0 batch_counter_thresh[0..2]
+                0..2 batch_counter_thresh[0..2]
            },
            0x0C COUNTER_BDR_REG2 rw batch_counter_thresh[3..10],
            ///INT1 pin control register.
@@ -164,14 +164,14 @@ dev_csr! {
                 ///1001: 3.33kHz (high performance)
                 ///1010: 6.66kHz (high performance)
                 ///11xx: Reserved
-                7..4 accel_odr_mode,
+                4..7 accel_odr_mode,
                 ///Accelerometer full-scale selection
                 ///When XL_FS_MODE=0 in CTRL8_XL
                 ///00: ±4g (default)
                 ///01: ±32
                 ///10: ±8
                 ///11: ±16
-                3..2 accel_fs, 
+                2..3 accel_fs, 
                 ///Accelerometer high-resolution selection
                 ///0: output from first stage digital filtering selected (default)
                 ///1: output from LPF2 second filtering stage selected
@@ -206,13 +206,13 @@ dev_csr! {
                 ///1001: 3.33kHz (high performance)
                 ///1010: 6.66kHz (high performance)
                 ///others: reserved
-                7..4 gyro_odr, 
+                4..7 gyro_odr, 
                 ///Gyroscope UI chain full-scale selection
                 ///00: ±250 dp
                 ///01: ±500 dp
                 ///10: ±1000 dp
                 ///11: ±2000 dp
-                3..2 gyro_fs_select, 
+                2..3 gyro_fs_select, 
                 ///Selects gyro UI chain full-scale ±125 dp
                 ///0: FS selected through gyro_fs_select
                 ///1: FS set to ±125 dp
@@ -271,19 +271,19 @@ dev_csr! {
                 ///01: accelerometer only
                 ///10: gyroscope only
                 ///11: gyroscope + accelerometer
-                6..5 read_wraparound, 
+                5..6 read_wraparound, 
                 ///Enables angular rate sensor self-test. Default value: 00
                 ///00: self-test disabled
                 ///01: Positive sign self-test
                 ///10: Reserved
                 ///11: Negative sign self-test
-                3..2 gyro_selftest, 
+                2..3 gyro_selftest, 
                 ///Enables linear acceleration sensor self-test. Default value: 00
                 ///00: self-test disabled
                 ///01: Positive sign self-test
                 ///10: Negative sign self-test
                 ///11: Reserved
-                1..0 accel_selftest, 
+                0..1 accel_selftest, 
            },
            0x15 CTRL6_C rw
            {
@@ -292,7 +292,7 @@ dev_csr! {
                 ///010: Level-sensitive trigger mode is selected.
                 ///011: Level-sensitive latched mode is selected.
                 ///110: Level-sensitive FIFO enable mode is selected.
-                7..5 den_trigger_mode, 
+                5..7 den_trigger_mode, 
                 ///Disables high-performance operating mode for the accelerometer. Default value: 0
                 4 accel_hp_dis, 
                 ///Weight of the accelerometer user offset bits of registers X_OFS_USR (73h), Y_OFS_USR (74h), Z_OFS_USR (75h)
@@ -301,7 +301,7 @@ dev_csr! {
                 3 accel_offset_weight,
                 ///Gyroscope low-pass filter (LPF1) bandwidth selection.
                 ///Table didn't fit, see datasheet
-                2..0 gyro_lpf_bw, 
+                0..2 gyro_lpf_bw, 
 
            },
            0x16 CTRL7_G rw
@@ -315,7 +315,7 @@ dev_csr! {
                 ///01: 65 mHz
                 ///10: 260 mHz
                 ///11: 1.04 Hz
-                5..4 gyro_hpf_cutoff, 
+                4..5 gyro_hpf_cutoff, 
                 ///Selects how to enable and disable the OIS chain, after first configuration and enabling through SPI2.
                 ///0: OIS chain is enabled/disabled with SPI2 interface
                 ///1: OIS chain is enabled/disabled with primary interface
@@ -349,7 +349,7 @@ dev_csr! {
                 ///101: ODR/200
                 ///110: ODR/400
                 ///111: ODR/800
-                7..5 accel_hpf_cutoff,
+                5..7 accel_hpf_cutoff,
                 ///Enables accelerometer high-pass filter reference mode (valid for high-pass path - HP_SLOPE_XL_EN bit must be 1). Default value: 0
                 4 accel_hp_refmode, 
                 ///Enables accelerometer LPF2 and HPF fast-settling mode. The filter sets the second samples after writing this bit. Active only during device exit from power- down mode. Default value: 0
@@ -539,10 +539,10 @@ dev_csr! {
                 ///101 | Y | Z | X
                 ///110 | Z | X | Y
                 ///111 | Z | Y | X
-                7..5 tap_priority, 
+                5..7 tap_priority, 
                 ///X-axis tap recognition threshold. Default value: 0
                 ///1 LSB = FS_XL / (2^5)
-                4..0 tap_ths_x 
+                0..4 tap_ths_x 
            },
            0x58 TAP_CFG2 rw
            {
@@ -553,10 +553,10 @@ dev_csr! {
                 ///01: sets accelerometer ODR to 12.5 Hz (low-power mode), gyro does not change;
                 ///10: sets accelerometer ODR to 12.5 Hz (low-power mode), gyro to sleep mode;
                 ///11: sets accelerometer ODR to 12.5 Hz (low-power mode), gyro to power-down mode)
-                6..5 inact_en,
+                5..6 inact_en,
                 ///Y-axis tap recognition threshold. Default value: 0
                 ///1 LSB = FS_XL / (2^5)
-                4..0 tap_ths_y 
+                0..4 tap_ths_y 
            },
            0x59 TAP_THS_6D rw
            {
@@ -568,9 +568,9 @@ dev_csr! {
                 ///01 | 47 degrees
                 ///10 | Reserved
                 ///11 | Reserved
-                6..5 sixd_ths,
+                5..6 sixd_ths,
                 ///Z-axis recognition threshold. Default value: 0
-                4..0 tap_ths_z 
+                0..4 tap_ths_z 
            },
            0x5A TAP_DUR rw
            {
@@ -579,19 +579,19 @@ dev_csr! {
                 ///between two consecutive detected taps to determine a double tap event. The default
                 ///value of these bits is 0000b which corresponds to 16*ODR_XL time. If the DUR[3:0]
                 ///bits are set to a different value, 1LSB corresponds to 32*ODR_XL time.
-                7..4 dur, 
+                4..7 dur, 
                 ///Expected quiet time after a tap detection. Default value: 00
                 ///Quiet time is the time after the first detected tap in which there must not be any
                 ///overthreshold event. The default value of these bits is 00b which corresponds to
                 ///2*ODR_XL time. If the QUIET[1:0] bits are set to a different value, 1LSB corresponds
                 ///to 4*ODR_XL time.
-                3..2 quiet, 
+                2..3 quiet, 
                 ///Maximum duration of overthreshold event. Default value: 00
                 ///Maximum duration is the maximum time of an overthreshold signal detection to be
                 ///recognized as a tap event. The default value of these bits is 00b which corresponds
                 ///to 4*ODR_XL time. If the SHOCK[1:0] bits are set to a different value, 1LSB
                 ///corresponds to 8*ODR_XL time.
-                1..0 shock 
+                0..1 shock 
            },
            0x5B WAKE_UP_THS rw
            {                
@@ -603,7 +603,7 @@ dev_csr! {
                 ///Drives the low-pass filtered data with user offset correction (instead of high-pass filtered data) to the wakeup function.
                 6 usr_off_on_wu, 
                 ///Threshold for wakeup: 1 LSB weight depends on WAKE_THS_W in WAKE_UP_DUR (5Ch). Default value: 000000
-                5..0 wk_ths 
+                0..5 wk_ths 
            },
            0x5C WAKE_UP_DUR rw
            {
@@ -614,21 +614,21 @@ dev_csr! {
                 7 ff_dur5, 
                 ///Wake up duration event. Default: 00
                 ///1LSB = 1 ODR_time
-                6..5 wake_dur, 
+                5..6 wake_dur, 
                 ///Weight of 1 LSB of wakeup threshold. Default: 0
                 ///(0: 1 LSB = FS_XL / (26);
                 ///1: 1 LSB = FS_XL / (28) )
                 4 wake_ths_w, 
                 ///Duration to go in sleep mode. Default value: 0000 (this corresponds to 16 ODR)
                 ///1 LSB = 512 ODR
-                3..0 sleep_dur 
+                0..3 sleep_dur 
            },
            0x5D FREE_FALL rw
            {
                 ///Free-fall duration event. Default: 0
                 ///For the complete configuration of the free fall duration, refer to FF_DUR5 in
                 ///WAKE_UP_DUR (5Ch) configuration
-                7..3 ff_dur, 
+                3..7 ff_dur, 
                 ///Free fall threshold setting. Default: 000
                 ///FF_THS[2:0] | Threshold value
                 ///000 | 312 mg
@@ -639,7 +639,7 @@ dev_csr! {
                 ///101 | Reserved
                 ///110 | Reserved
                 ///111 | Reserved
-                2..0 ff_ths 
+                0..2 ff_ths 
            },
            0x5E MD1_CFG rw
                //Functions routing to INT1 pin register (R/W). Each bit in this
@@ -695,7 +695,7 @@ dev_csr! {
                 ///01: bus available time equal to 2 µsec;
                 ///10: bus available time equal to 1 msec;
                 ///11: bus available time equal to 25 msec
-                4..3 i3c_bus_avb_sel,
+                3..4 i3c_bus_avb_sel,
                 ///This bit allows disabling the INT1 pull-down.
                 ///PD_DIS_INT1
                 ///INT1
@@ -708,7 +708,7 @@ dev_csr! {
            {
                 ///Difference in percentage of the effective ODR (and timestamp rate) with respect to the typical. Step: 0.15%. 
                 ///8-bit format, two's complement.
-                7..0 freq_fine
+                0..7 freq_fine
            },
            0x73 X_OFS_USR rw usr_offset_x,
            0x74 Y_OFS_USR rw usr_offset_y,
@@ -736,9 +736,9 @@ dev_csr! {
                 ///0x11      Sensor hub slave 3
                 ///0x12      Step counter
                 ///0x19      Sensor hub nack
-                7..3 tag_sensor, 
+                3..7 tag_sensor, 
                 ///2-bit counter which identifies sensor time slot
-                2..1 tag_counter, 
+                1..2 tag_counter, 
                 ///Parity check of TAG content
                 0 tag_parity 
            },
@@ -814,7 +814,7 @@ impl <S: SpiHandle> Lsm6dso<S> {
           let accel_mode = self.read_reg(RegCtrl1Xl).await?;
           let mask = 0b1111_00_11;
 
-          let bits = match new_fs {
+          let new_bits = match new_fs {
                0 => 0b0000_00_00,
                1 => 0b0000_10_00,
                2 => 0b0000_11_00,
@@ -822,8 +822,8 @@ impl <S: SpiHandle> Lsm6dso<S> {
                _ => 0b0000_00_00
           };
 
-          self.write_reg(RegCtrl1Xl, accel_mode & mask | bits as u8).await?;
-          Ok(bits >> 2)
+          self.write_reg(RegCtrl1Xl, accel_mode & mask | new_bits as u8).await?;
+          Ok(new_bits >> 2)
      }
      pub async fn gyro_sensitivity(&mut self) -> Result<i32, <S::Bus as ErrorType>::Error> {
           Ok(
