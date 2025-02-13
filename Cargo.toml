@@ -12,5 +12,5 @@ members = [
     "w25q",
     "examples/imu-test",
     "examples/bare"
-]
+, "sirin-c"]
 resolver = "2"
